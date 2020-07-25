@@ -6,7 +6,6 @@ import platform
 import setuptools
 from distutils.core import setup, Extension
 
-module = Extension('runshell', sources= ["./fishlifeqc/runshell.c"])
 
 if platform.architecture()[0] != '64bit':
     sys.stderr.write('Architecture requires 64bit')
@@ -39,6 +38,16 @@ else:
 
 
 
+runshell = Extension('runshell', sources = ["./fishlifeqc/runshell.c"])
+sequtils = Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"])
+
+
+ext_modules = [
+              runshell,
+              sequtils
+              ]
+
+
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
@@ -49,7 +58,7 @@ setup(name="fishlifeqc",
       long_description_content_type='text/markdown',
       url='https://github.com/Ulises-Rosas/fishlifeqc',
       packages=['fishlifeqc'],
-      ext_modules=[module],
+      ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
       classifiers=[
           'Programming Language :: Python :: 3'
