@@ -32,6 +32,13 @@ elif myos == 'win32':
             './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3.exe',
             './ext_bin/blast/blastn.exe',
             './ext_bin/blast/makeblastdb.exe']
+else:
+    sys.stderr.write('Package does not work with %s operative system'  % myos)
+    sys.stderr.flush()
+    exit()
+
+
+
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
