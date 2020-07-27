@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
+// #include <unistd.h> // no standar library
 #include <math.h>
 
 #define PY_SSIZE_T_CLEAN
@@ -29,12 +29,20 @@
 
 char* readfasta(const char* name){
 
-    if (access(name, F_OK) == -1)
-    {
+    // if (access(name, F_OK) == -1) // function from <unistd.h>
+    // {
+    //     return NULL;
+    // }
+
+    FILE *f = fopen(name, "rb");
+
+    if (!f)
+    {   
+        fprintf(stderr, "Couldn't read file\n");
+        fclose(f);
         return NULL;
     }
 
-    FILE *f = fopen(name, "rb");
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
