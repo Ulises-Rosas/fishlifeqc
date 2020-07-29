@@ -41,6 +41,10 @@ ext_modules = [
               Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"])
               ]
 
+dependencies = [
+                "matplotlib",
+                ]
+
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
@@ -52,6 +56,7 @@ setup(name="fishlifeqc",
       packages=['fishlifeqc'],
       ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
+      install_requires = dependencies,
       entry_points={
         'console_scripts': [
             'pairedblast  = fishlifeqc.pairedblast:main',
