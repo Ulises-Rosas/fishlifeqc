@@ -4,13 +4,14 @@ import os
 import sys
 import glob
 import platform
+import argparse
 from multiprocessing import Pool
 import xml.etree.ElementTree as ET
 
 
 import runshell
 import fishlifeseq
-from fishlifeqc.utils import isfasta
+from fishlifeqc.utils import isfasta, plotcounts
 
 myos = sys.platform
 
@@ -46,9 +47,7 @@ class Pairedblast:
                 sequences = None,
                 taxonomy  = None,
                 threads   = 1,
-                threshold = 95,
-                blastnexec     = BLASTN,
-                makeblastnexec = MAKEBLASTDB):
+                threshold = 95):
         """
         makeblastdb –in mydb.fsa –dbtype nucl –parse_seqids	
         blastn -db db -query query -out  out -outfmt 5 -perc_identity 95
@@ -63,7 +62,8 @@ class Pairedblast:
         self.blastline  = "{blastn} -db {db}  -query {query} -out {outp} -outfmt 5 -perc_identity {threshold}"
         
         self.makeblastdbexec = MAKEBLASTDB
-        self.makeblastdbline = "{makeblastdb} -in {inp}  -dbtype nucl"
+        self.makeblastlogfil = "fishlife_makeblast.log"
+        self.makeblastdbline = "{makeblastdb} -in {inp}  -dbtype nucl -logfile {log}" 
 
         self.ADDRESS = "BlastOutput_iterations/Iteration/Iteration_hits"
 
@@ -113,8 +113,15 @@ class Pairedblast:
         out = []
         for i in preout:
             out += i
-        
-        return out
+
+        if out:
+            sys.stderr.write("Check the following at the taxonomy file:\n\n")
+            sys.stderr.flush()
+
+            for i in set(out):
+                sys.stderr.write("- %s\n" % i )
+                sys.stderr.flush()
+            exit()
 
     def parseblastnanes(self, blastnout):
 
@@ -166,7 +173,8 @@ class Pairedblast:
         status = runshell.get(
                     self.makeblastdbline.format(
                         makeblastdb = self.makeblastdbexec,
-                        inp         = nohyphen
+                        inp         = nohyphen,
+                        log         = self.makeblastlogfil
                         )
                     )
 
@@ -179,10 +187,15 @@ class Pairedblast:
     def iteratedbproduction(self):
 
         with Pool(processes = self.threads) as p:
-            mydbs = [*p.map(self.generatedb, self.sequences)]
-            
+            mydbs = [*p.map(self.generatedb, self.sequences)]            
         # mydbs = [*map(self.generatedb, 
         # ["../data/test_hyphen.txt", "../data/exon1.txt"])]
+
+        try:
+            os.remove(self.makeblastlogfil)
+            os.remove(self.makeblastlogfil.split(".")[0] + ".perf")
+        except FileNotFoundError:
+            pass
 
         passed = list(filter(None, mydbs))
         failed = list(set(self.sequences) - set(passed))
@@ -199,26 +212,30 @@ class Pairedblast:
         status = fishlifeseq.splitfasta(nohyphen)
 
         if status:
+            sys.stderr.write("Unable to split fastas at '%s' file\n" % filename)
+            sys.stderr.flush()
+            exit()
             return None
 
         queries = getqueries(prefix, filename)
 
         out = []
+        failedtoblast = []
 
         for q in queries:
             tmpout = q + "_blastn"
-
-            status = runshell.get( 
-                self.blastline.format(
-                        query     = q,
-                        outp      = tmpout,
-                        db        = nohyphen, 
-                        threshold = self.threshold,
-                        blastn    = self.blastnexec
+            line   = self.blastline.format(
+                            query     = q,
+                            outp      = tmpout,
+                            db        = nohyphen, 
+                            threshold = self.threshold,
+                            blastn    = self.blastnexec
                         )
-                    )
+
+            status = runshell.get(line)
 
             if status:
+                failedtoblast.append(line)
                 continue
 
             othermatch = self.checkoutgroups(q, tmpout, filename)
@@ -229,7 +246,13 @@ class Pairedblast:
             os.remove(q)
             os.remove(tmpout)
 
-        [*map(os.remove, glob.glob(nohyphen+".n*"))]
+        if not failedtoblast:
+            [*map(os.remove, glob.glob(nohyphen+".n*"))]
+
+        else:
+            for line in failedtoblast:
+                sys.stderr.write("Error runnig: %s\n" % line)
+                sys.stderr.flush()
 
         if not out:
             return None
@@ -244,9 +267,115 @@ class Pairedblast:
         # preout = [*map(self.blastn, 
         # ["../data/test_hyphen.txt", "../data/exon1.txt"])]
 
-        out  = []
-        for i in preout:
-            out += i
+        preout = filter(None, preout)
 
-        #TODO: if out, plot
-        return out
+        if preout:
+            out  = []
+            for i in preout:
+                out += i
+
+            return out
+
+        else:
+            return None
+
+
+
+MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
+OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
+THRESOLD         = 95.0
+
+def getOpts():
+
+    parser = argparse.ArgumentParser(formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                     description="""
+                        Paired blastn comparing taxonomical groups
+
+The expected group for each blastn with a given threshold value is the query's group. 
+But, only if other group is detected, this one is reported at '%s' by default. Filename
+can be changed with `-o` option. See below for further details. 
+
+""" % OUTPUTFILENAME)
+
+    parser.add_argument('sequences', 
+                        metavar='',
+                        nargs="+",
+                        type=str,
+                        help='File names with sequences. If these are aligned, an unalignment process is performed')
+    parser.add_argument('-t','--taxonomy',
+                        metavar="",
+                        default = None,
+                        required= True,
+                        help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+    parser.add_argument('-i','--identity', 
+                        metavar="",
+                        type = float,
+                        default = THRESOLD,
+                        help='[Optional] Minimum identity values to perform each reciprocal blastn [Default: %s]' % THRESOLD)
+    parser.add_argument('-n', '--threads',
+                        metavar = "",
+                        type    = int,
+                        default = 1,
+                        help    = '[Optional] number of cpus [Default = 1]')                        
+    parser.add_argument('-o','--out', 
+                        metavar="",
+                        default = OUTPUTFILENAME,
+                        type= str,
+                        help='[Optional] output file [Default: %s]' % OUTPUTFILENAME)
+    args = parser.parse_args()
+
+    return args
+
+
+def main():
+    args = getOpts()
+
+    # sequences        = ["../data/exon1.txt", "../data/test_hyphen.txt"]
+    # taxonomyfile     = "../data/taxonomy.txt"
+    # sequences        = ["data/exon1.txt", "data/test_hyphen.txt"]
+    # taxonomyfile     = "data/taxonomy.txt"
+
+    # print(args)
+
+    pblast = Pairedblast(
+                    sequences = args.sequences,
+                    taxonomy  = args.taxonomy,
+                    threads   = args.threads,
+                    threshold = args.identity
+                    )
+
+    pblast.checktaxonomyfile()
+
+    passed, failed = pblast.iteratedbproduction()
+
+    if failed:
+        with open(MAKEBLASTFAILURE, "w") as f:
+            for i in failed:
+                f.write(i + "\n")
+
+    if passed:
+
+        outliers = pblast.iterateblastn(passed)
+
+        if outliers:
+            
+            with open(args.out, 'w') as f:
+
+                f.write("exon,sample,group\n")
+
+                for exon,spps,group in outliers:
+                    f.write(  "%s,%s,%s\n" %  (exon, spps, group) )
+
+            plotcounts(by = "samples", 
+                    outliers = outliers, 
+                    identity = args.identity, 
+                    first = 20)
+
+            plotcounts(by = "exons",
+                    outliers = outliers,
+                    identity = args.identity, 
+                    first = 20)
+
+
+if __name__ == "__main__":
+    main()

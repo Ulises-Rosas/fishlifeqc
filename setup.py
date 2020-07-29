@@ -36,18 +36,10 @@ else:
     sys.stderr.flush()
     exit()
 
-
-
-runshell = Extension('runshell', sources = ["./fishlifeqc/runshell.c"])
-sequtils = Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"])
-
-
 ext_modules = [
-              runshell,
-              sequtils
+              Extension('runshell', sources = ["./fishlifeqc/runshell.c"]),
+              Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"])
               ]
-
-
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
@@ -60,6 +52,11 @@ setup(name="fishlifeqc",
       packages=['fishlifeqc'],
       ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
+      entry_points={
+        'console_scripts': [
+            'pairedblast  = fishlifeqc.pairedblast:main',
+            ]
+        },
       classifiers=[
           'Programming Language :: Python :: 3'
       ]
