@@ -42,7 +42,7 @@ ext_modules = [
               ]
 
 dependencies = [
-                "matplotlib",
+                "boldminer",
                 ]
 
 with open('README.md') as readme_file:

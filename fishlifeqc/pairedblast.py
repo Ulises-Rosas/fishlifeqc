@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 
 import runshell
 import fishlifeseq
-from fishlifeqc.utils import isfasta, plotcounts
+from fishlifeqc.utils import isfasta
 
 myos = sys.platform
 
@@ -366,15 +366,15 @@ def main():
                 for exon,spps,group in outliers:
                     f.write(  "%s,%s,%s\n" %  (exon, spps, group) )
 
-            plotcounts(by = "samples", 
-                    outliers = outliers, 
-                    identity = args.identity, 
-                    first = 20)
+            # plotcounts(by = "samples", 
+            #         outliers = outliers, 
+            #         identity = args.identity, 
+            #         first = 20)
 
-            plotcounts(by = "exons",
-                    outliers = outliers,
-                    identity = args.identity, 
-                    first = 20)
+            # plotcounts(by = "exons",
+            #         outliers = outliers,
+            #         identity = args.identity, 
+            #         first = 20)
 
 
 if __name__ == "__main__":
