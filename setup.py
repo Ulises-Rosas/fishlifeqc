@@ -59,7 +59,8 @@ setup(name="fishlifeqc",
       install_requires = dependencies,
       entry_points={
         'console_scripts': [
-            'pairedblast  = fishlifeqc.pairedblast:main',
+            # 'pairedblast  = fishlifeqc.pairedblast:main',
+            'fishlifeqc   = fishlifeqc.core_fishlife:main',
             ]
         },
       classifiers=[
