@@ -3,7 +3,7 @@
 import sys
 import argparse
 from fishlifeqc.pairedblast import Pairedblast
-
+from fishlifeqc.missingdata import Missingdata
 
 parser = argparse.ArgumentParser( formatter_class = argparse.RawDescriptionHelpFormatter, 
                                       description = '''
@@ -11,6 +11,54 @@ parser = argparse.ArgumentParser( formatter_class = argparse.RawDescriptionHelpF
                                       ''')
 
 subparsers = parser.add_subparsers(help='', dest='subcommand')
+
+
+# mdata       ------------------------------------------------------
+missingdata = subparsers.add_parser('mdata',
+                                    help = "Trim sequences in function of gap ocurrences",
+                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                    description="""
+                            Missing data
+Example:
+    fishlifeqc mdata [exons]
+""")
+
+missingdata.add_argument('sequences', 
+                    metavar='',
+                    nargs="+",
+                    type=str,
+                    help='''File names with sequences. 
+                            If these are aligned, an 
+                            unalignment process is performed''')
+missingdata.add_argument('-c','--coverage', 
+                    metavar="",
+                    type = float,
+                    default = 0.5,
+                    help='''[Optional] Set the horizontal trimming threshold.
+                             Sequences with more than this value are 
+                             removed [Default: %s]''' % 0.5)
+missingdata.add_argument('-v','--verticaltrim',
+                    action="store_true",
+                    help='[Optional] if selected, trim at adges is applied')
+missingdata.add_argument('-e','--edges', 
+                    metavar="",
+                    type = float,
+                    default = 0.6,
+                    help='''[Optional] If `-v` is selected, set the vertical trimming threshold. 
+                            Sequence columns at edges with more than 
+                            this value are removed [Default: %s]''' % 0.6)
+missingdata.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] number of cpus [Default = 1]')                        
+missingdata.add_argument('-o','--out', 
+                    metavar="",
+                    default = "_trimmed",
+                    type= str,
+                    help='[Optional] Suffix for outfile name [Default: %s]' % "_trimmed")
+
+# mdata       ------------------------------------------------------
 
 # pairedblast ------------------------------------------------------
 
@@ -64,9 +112,21 @@ pairedblast.add_argument('-o','--out',
                     help='[Optional] output file [Default: %s]' % OUTPUTFILENAME)
 # pairedblast ------------------------------------------------------
 
+
+
 def main():
 
     wholeargs = parser.parse_args()
+    if wholeargs.subcommand == "mdata":
+        # print(wholeargs)
+        Missingdata(
+                fastas = wholeargs.sequences, 
+                htrim = wholeargs.coverage, 
+                vtrim = wholeargs.edges, 
+                outputsuffix = wholeargs.out, 
+                trimedges = wholeargs.verticaltrim, # default false
+                threads = wholeargs.threads
+            ).run()
 
     if wholeargs.subcommand == "rblast":
 
@@ -98,6 +158,9 @@ def main():
 
                     for exon,spps,group in outliers:
                         f.write(  "%s,%s,%s\n" %  (exon, spps, group) )
+
+
+    
         
 if __name__ == "__main__":
     main()

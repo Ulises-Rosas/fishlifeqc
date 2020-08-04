@@ -49,7 +49,7 @@ class Pairedblast:
                 threads   = 1,
                 threshold = 95):
         """
-        makeblastdb –in mydb.fsa –dbtype nucl –parse_seqids	
+        makeblastdb –in mydb.fsa –dbtype nucl
         blastn -db db -query query -out  out -outfmt 5 -perc_identity 95
         """
         self.threads   = threads
@@ -215,7 +215,6 @@ class Pairedblast:
             sys.stderr.write("Unable to split fastas at '%s' file\n" % filename)
             sys.stderr.flush()
             exit()
-            return None
 
         queries = getqueries(prefix, filename)
 
