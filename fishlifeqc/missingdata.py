@@ -32,9 +32,9 @@ class Missingdata:
         lengths = set([len(v) for _,v in aln.items()])
 
         if lengths.__len__() > 1:
-            sys.stderr.write("'%s' file has sequences with different lengths" % filename)
+            sys.stderr.write("'%s' file has sequences with different lengths\n" % filename)
             sys.stderr.flush()
-            exit()
+            return None
 
         else:
             return lengths.pop()
@@ -112,6 +112,9 @@ class Missingdata:
 
         alignment = fas_to_dic(fasta)
         seqlength = self.check_aln(alignment, fasta)
+
+        if not seqlength:
+            return None
 
         # horizontal trim
         trimmed = self.sequencecompleteness(
