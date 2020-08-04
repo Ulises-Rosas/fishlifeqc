@@ -32,6 +32,10 @@ def getqueries(prefix, filename):
 
     ourpattern = filename + "_query[0-9]+$"
     out = []
+
+    if not prefix:
+        prefix = "."
+
     for i in os.listdir(prefix):
         if re.findall(ourpattern, i):
             out.append(
