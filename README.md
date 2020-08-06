@@ -25,29 +25,20 @@ python3 setup.py install_data
 To look at the help page of `pairedblast`, you can use:
 
 ```Bash
-pairedblast -h
+fishlifeqc -h
 ```
 
 ```
-usage: pairedblast [-h] -t  [-i] [-n] [-o]  [...]
+usage: fishlifeqc [-h] {mdata,rblast} ...
 
-                        Paired blastn comparing taxonomical groups
-
-The expected group for each blastn with a given threshold value is the query's group. 
-But, only if other group is detected, this one is reported at 'mismatch_pairedblastn.txt' by default. Filename
-can be changed with `-o` option. See below for further details. 
+                                 Quality Control Steps
+                                      
 
 positional arguments:
-                    File names with sequences. If these are aligned, an
-                    unalignment process is performed
+  {mdata,rblast}
+    mdata         Trim sequences in function of gap ocurrences
+    rblast        Reciprocal blastn comparing taxonomical groups
 
 optional arguments:
-  -h, --help        show this help message and exit
-  -t , --taxonomy   Taxonomy file. Format in csv: [sequence
-                    name],[group],[species name]
-  -i , --identity   [Optional] Minimum identity values to perform each
-                    reciprocal blastn [Default: 95.0]
-  -n , --threads    [Optional] number of cpus [Default = 1]
-  -o , --out        [Optional] output file [Default:
-                    mismatch_pairedblastn.txt]
+  -h, --help      show this help message and exit
 ```
