@@ -4,6 +4,7 @@ import sys
 import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
+from fishlifeqc.boldsearch import Boldesearch
 
 parser = argparse.ArgumentParser( formatter_class = argparse.RawDescriptionHelpFormatter, 
                                       description = '''
@@ -112,7 +113,68 @@ pairedblast.add_argument('-o','--out',
                     help='[Optional] output file [Default: %s]' % OUTPUTFILENAME)
 # pairedblast ------------------------------------------------------
 
+# bold search ------------------------------------------------------
+THRESHOLD = 0.98
+BOLD_DB  = 'COX1_SPECIES_PUBLIC'
+boldsearch = subparsers.add_parser('bold',
+                                    help = "Look for matches between sequences and the BOLD database",
+                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                    description="""
 
+
+                Wrapper of both BOLD and NCBI APIs for species identifications
+                                    from DNA sequences
+- Hosts:
+    BOLD: http://www.boldsystems.org/index.php/Ids_xml
+    NCBI: https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi
+
+- Example:
+    fishlifeqc bold [sequence] -t [taxonomy file]
+""")
+boldsearch.add_argument('sequence', 
+                        metavar='',
+                        type=str,
+                        help='''File name with the COI sequences. 
+                                If these are aligned, an 
+                                unalignment process is performed''')
+boldsearch.add_argument('-t','--taxonomy',
+                        metavar="",
+                        default = None,
+                        required= True,
+                        help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+boldsearch.add_argument('-v','--threshold',
+                        type = float,
+                        metavar="",
+                        action='store',
+                        default=THRESHOLD,
+                        help='Minimum similarity allowed for best matched species [Default = %s]' % THRESHOLD)
+boldsearch.add_argument('-b','--bold_db', 
+                        metavar="",
+                        type  = str,
+                        default = BOLD_DB,
+                        action='store',
+                        help='''BOLD database. There are four available: 
+                                COX1,
+                                COX1_SPECIES,
+                                COX1_SPECIES_PUBLIC,
+                                COX1_L640bp
+                                [Default = %s]''' % BOLD_DB )
+boldsearch.add_argument('-n','--ncbi',
+                        action='store_true',
+                        help=' If selected, BLASTn is used to identify species')
+boldsearch.add_argument('-k','--keep',
+                        action='store_false',
+                        help=' If selected, intermideate files are kept')
+boldsearch.add_argument('-q', '--quiet',
+                        action='store_true',
+                        help=' If selected, suppress running messages')
+boldsearch.add_argument('-o','--out', 
+                        metavar="",
+                        type = str,
+                        default=None,
+                        action='store',
+                        help='Output name [Default = `sequence` + _bold ]' )
+# bold search ------------------------------------------------------
 
 def main():
 
@@ -128,7 +190,7 @@ def main():
                 threads = wholeargs.threads
             ).run()
 
-    if wholeargs.subcommand == "rblast":
+    elif wholeargs.subcommand == "rblast":
 
         pblast = Pairedblast(
                         sequences = wholeargs.sequences,
@@ -159,8 +221,18 @@ def main():
                     for exon,spps,group in outliers:
                         f.write(  "%s,%s,%s\n" %  (exon, spps, group) )
 
-
-    
+    elif wholeargs.subcommand == "bold":
         
+        Boldesearch(
+            sequence = wholeargs.sequence,
+            bolddatabase = wholeargs.bold_db,
+            make_blast = wholeargs.ncbi,
+            quiet = wholeargs.quiet,
+            taxonomyfile = wholeargs.taxonomy,
+            removeintermediate = wholeargs.keep,
+            threshold = wholeargs.threshold,
+            outfile = wholeargs.out
+        ).id_engine()
+
 if __name__ == "__main__":
     main()
