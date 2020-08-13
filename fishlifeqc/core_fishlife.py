@@ -6,6 +6,13 @@ from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch import Boldesearch
 
+
+PB_MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
+PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
+PB_THRESOLD         = 95.0
+BS_BOLD_DB          = 'COX1_SPECIES_PUBLIC'
+BS_THRESHOLD        = 0.98
+
 parser = argparse.ArgumentParser( formatter_class = argparse.RawDescriptionHelpFormatter, 
                                       description = '''
                                  Quality Control Steps
@@ -62,11 +69,6 @@ missingdata.add_argument('-o','--out',
 # mdata       ------------------------------------------------------
 
 # pairedblast ------------------------------------------------------
-
-MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
-OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
-THRESOLD         = 95.0
-
 pairedblast = subparsers.add_parser('rblast',
                                     help = "Reciprocal blastn comparing taxonomical groups",
                                     formatter_class = argparse.RawDescriptionHelpFormatter, 
@@ -84,7 +86,7 @@ Example:
 
     fishlifeqc rblast [exons] -t [taxonomy file]
 
-                                        """ % OUTPUTFILENAME)
+                                        """ % PB_OUTPUTFILENAME)
 
 pairedblast.add_argument('sequences', 
                     metavar='',
@@ -99,8 +101,8 @@ pairedblast.add_argument('-t','--taxonomy',
 pairedblast.add_argument('-i','--identity', 
                     metavar="",
                     type = float,
-                    default = THRESOLD,
-                    help='[Optional] Minimum identity values to perform each reciprocal blastn [Default: %s]' % THRESOLD)
+                    default = PB_THRESOLD,
+                    help='[Optional] Minimum identity values to perform each reciprocal blastn [Default: %s]' % PB_THRESOLD)
 pairedblast.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -108,14 +110,12 @@ pairedblast.add_argument('-n', '--threads',
                     help    = '[Optional] number of cpus [Default = 1]')                        
 pairedblast.add_argument('-o','--out', 
                     metavar="",
-                    default = OUTPUTFILENAME,
+                    default = PB_OUTPUTFILENAME,
                     type= str,
-                    help='[Optional] output file [Default: %s]' % OUTPUTFILENAME)
+                    help='[Optional] output file [Default: %s]' % PB_OUTPUTFILENAME)
 # pairedblast ------------------------------------------------------
 
 # bold search ------------------------------------------------------
-THRESHOLD = 0.98
-BOLD_DB  = 'COX1_SPECIES_PUBLIC'
 boldsearch = subparsers.add_parser('bold',
                                     help = "Look for matches between sequences and the BOLD database",
                                     formatter_class = argparse.RawDescriptionHelpFormatter, 
@@ -146,19 +146,19 @@ boldsearch.add_argument('-v','--threshold',
                         type = float,
                         metavar="",
                         action='store',
-                        default=THRESHOLD,
-                        help='Minimum similarity allowed for best matched species [Default = %s]' % THRESHOLD)
+                        default=BS_THRESHOLD,
+                        help='Minimum similarity allowed for best matched species [Default = %s]' % BS_THRESHOLD)
 boldsearch.add_argument('-b','--bold_db', 
                         metavar="",
                         type  = str,
-                        default = BOLD_DB,
+                        default = BS_BOLD_DB,
                         action='store',
                         help='''BOLD database. There are four available: 
                                 COX1,
                                 COX1_SPECIES,
                                 COX1_SPECIES_PUBLIC,
                                 COX1_L640bp
-                                [Default = %s]''' % BOLD_DB )
+                                [Default = %s]''' % BS_BOLD_DB )
 boldsearch.add_argument('-n','--ncbi',
                         action='store_true',
                         help=' If selected, BLASTn is used to identify species')
