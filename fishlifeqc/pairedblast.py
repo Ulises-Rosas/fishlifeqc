@@ -251,6 +251,7 @@ class Pairedblast:
 
         if not failedtoblast:
             [*map(os.remove, glob.glob(nohyphen+".n*"))]
+            os.remove(nohyphen)
 
         else:
             for line in failedtoblast:
