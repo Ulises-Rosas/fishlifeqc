@@ -13,15 +13,28 @@ class Missingdata:
                 htrim = 0.6, 
                 vtrim = 0.5, 
                 outputsuffix = "_trimmed", 
-                trimedges = False,
-                threads = 1):
+                trimedges   = False,
+                codon_aware = False,
+                mtlib       = False,
+                threads     = 1):
 
         self.fasta = fastas
         self.htrim = htrim
         self.vtrim = vtrim
         self.outputsuffix = outputsuffix
         self.removeedges  = trimedges
+        #   |
+        #    -> if removeedges:
+        self.codon_aware  = codon_aware
+        #   |
+        #    -> if codon_aware:
+        self.mtlib        = mtlib
         self.threads      = threads
+
+        # stops for mitchondrial DNA
+        self.mt_stop_codons=["TAA", "TAG", "AGA", "AGG"]
+        # stops for standard genetic code
+        self.std_stop_codons=["TAA", "TAG", "TGA"]
 
     def check_aln(self, aln, filename):
         """
@@ -95,6 +108,79 @@ class Missingdata:
             return { k:v[ lfti:rgti + 1 ] for k,v in aln.items() }
         else:
             return None
+        
+    def trimedges_codonaware(self, aln, seqlength):
+        
+        headerlength = aln.__len__()
+        
+        lfti = 0
+        for i in range(0, seqlength, 3):
+
+            F = [v[i] for _,v in aln.items()].count('-')
+            S = [v[i + 1] for _,v in aln.items()].count('-')
+            T = [v[i + 2] for _,v in aln.items()].count('-')
+            perc = (F + S + T)/(headerlength*3)
+
+            if perc <= self.vtrim:
+                lfti = i
+                break
+                
+        rgti = 0
+        for i in reversed(range(0, seqlength, 3)):
+
+            F = [v[i] for _,v in aln.items()].count('-')
+            S = [v[i + 1] for _,v in aln.items()].count('-')
+            T = [v[i + 2] for _,v in aln.items()].count('-')
+
+            perc = (F + S + T)/(headerlength*3)
+
+            if perc <= self.vtrim:
+                rgti = i
+                break
+                
+        if rgti > lfti:
+            return { k:v[ lfti:rgti ] for k,v in aln.items() }
+        else:
+            return None
+
+    def is_stop(self, codon):
+
+        if self.mtlib:
+            return codon in self.mt_stop_codons
+        
+        else:
+            return codon in self.std_stop_codons
+            
+
+    def filter_by_codons(self, aln):
+        
+        seqlength = len(aln[ list(aln)[0] ])
+
+        out = {}
+        for k,v in aln.items():
+
+            stopcount = 0
+            mystr     = ""
+            
+            for c in range(0, seqlength, 3):
+                
+                codon = v[c:c+3]
+
+                if self.is_stop(codon):
+                    
+                    stopcount += 1
+                    mystr     += "NNN"
+
+                else:
+                    mystr += codon
+
+                if stopcount > 1:
+                    break
+                    
+            if stopcount <= 1:
+                out[k] = mystr
+
+        return out
 
     def writeresults(self, obj, name):
 
@@ -116,18 +202,32 @@ class Missingdata:
         if not seqlength:
             return None
 
-        # horizontal trim
+        # horizontal trim, not length change
         trimmed = self.sequencecompleteness(
                     aln       = alignment,
                     seqlength = seqlength
                 )
 
         if self.removeedges:
-            # vertical trim
-            trimmed = self.trimedges(
-                        aln       = trimmed, 
-                        seqlength = seqlength
-                    )
+
+            if not self.codon_aware:
+                # vertical trim, length change
+                trimmed = self.trimedges(
+                            aln       = trimmed, 
+                            seqlength = seqlength
+                        )
+            else:
+                # vertical trim, length change
+                trimmed = self.trimedges_codonaware(
+                            aln       = trimmed, 
+                            seqlength = seqlength
+                        )
+
+                if trimmed:
+                    # horizontal trimming
+                    trimmed = self.filter_by_codons(
+                                aln       = trimmed
+                            )
 
         if trimmed:
             self.writeresults(trimmed, fasta)

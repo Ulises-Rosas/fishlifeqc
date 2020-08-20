@@ -27,17 +27,37 @@ missingdata = subparsers.add_parser('mdata',
                                     formatter_class = argparse.RawDescriptionHelpFormatter, 
                                     description="""
                             Missing data
-Example:
-    fishlifeqc mdata [exons]
+
+Examples:
+
+    * horizontal trimming with a threshold of 0.5 (default):
+
+        $ fishlifeqc mdata [exons] -c 0.5
+
+    * vertical trimming with a threshold value of 0.6 (default):
+
+        $ fishlifeqc mdata [exons] -v -e 0.6
+
+    * vertical trimming by triplets: 
+
+        $ fishlifeqc mdata [exons] -v --codon_aware
+
+        note: stop codons are also counted along the sequence.
+              if a particular sequence has more than one stop
+              codon, the entire sequence is cut off from the 
+              alignment 
+
+    * vertical trimming by triplets and using mitochondrial 
+      vertebrate lib of stop codons: 
+
+        $ fishlifeqc mdata [exons] -v --codon_aware --mt
 """)
 
 missingdata.add_argument('sequences', 
                     metavar='',
                     nargs="+",
                     type=str,
-                    help='''File names with sequences. 
-                            If these are aligned, an 
-                            unalignment process is performed''')
+                    help='''File names with sequences''')
 missingdata.add_argument('-c','--coverage', 
                     metavar="",
                     type = float,
@@ -55,6 +75,13 @@ missingdata.add_argument('-e','--edges',
                     help='''[Optional] If `-v` is selected, set the vertical trimming threshold. 
                             Sequence columns at edges with more than 
                             this value are removed [Default: %s]''' % 0.6)
+missingdata.add_argument('-t','--codon_aware',
+                    action="store_true",
+                    help='[Optional] If `-v` and this option are selected, trimming is done by triplets')
+missingdata.add_argument('-m','--mt',
+                    action="store_true",
+                    help='''[Optional] If `-a` is selected and this option are selected,
+                     the mitochondrial vertebrate lib of stop codonds is used''')
 missingdata.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -187,6 +214,8 @@ def main():
                 vtrim = wholeargs.edges, 
                 outputsuffix = wholeargs.out, 
                 trimedges = wholeargs.verticaltrim, # default false
+                codon_aware = wholeargs.codon_aware, # default false
+                mtlib = wholeargs.mt, # default true
                 threads = wholeargs.threads
             ).run()
 
@@ -204,7 +233,7 @@ def main():
         passed, failed = pblast.iteratedbproduction()
 
         if failed:
-            with open(MAKEBLASTFAILURE, "w") as f:
+            with open(PB_MAKEBLASTFAILURE, "w") as f:
                 for i in failed:
                     f.write(i + "\n")
 
