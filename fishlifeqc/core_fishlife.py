@@ -4,8 +4,8 @@ import sys
 import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
-from fishlifeqc.boldsearch import Boldesearch
-
+from fishlifeqc.boldsearch  import Boldesearch
+from fishlifeqc.delete      import Deletion
 
 PB_MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
@@ -113,6 +113,28 @@ Example:
 
     fishlifeqc rblast [exons] -t [taxonomy file]
 
+    The taxnomy file is CSV-formated and must contain the following:
+
+        names                   group                   spps
+        [sequence header 1]     [group of header 1]     [species names of header 1]
+        [sequence header 2]     [group of header 2]     [species names of header 2]
+        [sequence header 3]     [group of header 3]     [species names of header 3]
+        ...                     ...                     ...
+
+    note 1: the spps column is not important on this step but it will at the bold
+            search command
+
+
+    note 2: By default, this command will create a file called `mismatch_pairedblastn.txt`
+            The format of this file is CSV-formated and will contain the following:
+
+            exon      sample                  group
+            file1     [sequence header 1]     [group of header 1] 
+            file1     [sequence header 2]     [group of header 2]
+            file2     [sequence header 1]     [group of header 1] 
+            file2     [sequence header 2]     [group of header 2]
+            ...       ...                     ...
+
                                         """ % PB_OUTPUTFILENAME)
 
 pairedblast.add_argument('sequences', 
@@ -203,6 +225,62 @@ boldsearch.add_argument('-o','--out',
                         help='Output name [Default = `sequence` + _bold ]' )
 # bold search ------------------------------------------------------
 
+
+# Deletion    ------------------------------------------------------
+
+deletion = subparsers.add_parser('delete',
+                                    help = "Delete specific sequences from fasta files",
+                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                    description="""
+
+                                Deletion
+
+            Specific sequences are deleted from fasta files and export
+            those files in a new fasta file. Sequences should be
+            indicated in a file.
+
+- Examples:
+
+    * usage
+
+        $ fishlifeqc delete [control file] -t [type of process it comes from]
+
+    * delete outlier sequences from the reciprocal blast command:
+
+        $ fishlifeqc delete mismatch_pairedblastn.txt -t rblast
+
+        where `mismatch_pairedblastn.txt` is CSV-formated and contains
+        the following:
+
+            exon      sample                  group
+            file1     [sequence header 1]     [group of header 1] 
+            file1     [sequence header 2]     [group of header 2]
+            file2     [sequence header 1]     [group of header 1] 
+            file2     [sequence header 2]     [group of header 2]
+            ...       ...                     ...
+
+        For each `exon` (i.e. fasta files), this script will delete all
+        `samples` (i.e. sequences with the corresponding headers)
+
+Output name: [fasta file] + '_deletion'
+""")
+deletion.add_argument('control_file', 
+                        metavar='',
+                        type=str,
+                        help='''File with the information of 
+                                sequences ''')
+deletion.add_argument('-t','--type',
+                        metavar="",
+                        choices=['rblast'],
+                        default = 'rblast',
+                        help='Type of process where contro_files comes from')
+deletion.add_argument('-n', '--threads',
+                        metavar = "",
+                        type    = int,
+                        default = 1,
+                        help    = '[Optional] number of cpus [Default = 1]')    
+# Deletion    ------------------------------------------------------
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -262,6 +340,15 @@ def main():
             threshold = wholeargs.threshold,
             outfile = wholeargs.out
         ).id_engine()
+
+    elif wholeargs.subcommand == "delete":
+        # print(wholeargs)
+
+        Deletion(
+            controlfile = wholeargs.control_file,
+            filetype    = wholeargs.type,
+            threads     = wholeargs.threads,
+        ).run()
 
 if __name__ == "__main__":
     main()
