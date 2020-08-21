@@ -241,7 +241,7 @@ class Pairedblast:
                 failedtoblast.append(line)
                 continue
 
-            othermatch = self.checkoutgroups(q, tmpout, filename)
+            othermatch = self.checkoutgroups(q, tmpout, sequence)
 
             if othermatch:
                 out.extend(othermatch)
