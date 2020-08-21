@@ -11,7 +11,7 @@ class Deletion:
 
         self.controlfile = controlfile
         self.filetype    = filetype
-        self.suffix      = "_%s_deletion" % filetype
+        self.suffix      = "_%sd" % filetype
         self.threads     = threads
 
         self.FAILEDFILE  = "failed_deletion.txt"
