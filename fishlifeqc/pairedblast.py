@@ -23,7 +23,7 @@ elif myos == 'linux' or  myos == 'linux2':
     BLASTN      = 'blastn_Linux_64bit'
     MAKEBLASTDB = 'makeblastdb_Linux_64bit'
 
-elif myos == 'linux' or  myos == 'linux2':
+elif myos == 'win32':
     BLASTN      = 'blastn.exe'
     MAKEBLASTDB = 'makeblastdb.exe'
 
