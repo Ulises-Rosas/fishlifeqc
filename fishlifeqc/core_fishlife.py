@@ -6,6 +6,7 @@ from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch  import Boldesearch
 from fishlifeqc.delete      import Deletion
+from fishlifeqc.genetrees   import Raxml
 
 PB_MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
@@ -281,6 +282,48 @@ deletion.add_argument('-n', '--threads',
                         help    = '[Optional] number of cpus [Default = 1]')    
 # Deletion    ------------------------------------------------------
 
+
+# Raxml Tree  ------------------------------------------------------
+raxml = subparsers.add_parser('raxmltree',
+                                help = "Get raxml trees for each exon",
+                                formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                description="""
+
+                                RAxML trees
+
+- Examples:
+
+    * Usage
+
+        $ fishlifeqc raxmltree [exon files]
+
+        Where the GTRGAMMA model and 1000 bootstrap 
+        are default settings
+
+""")
+raxml.add_argument('exonfiles', 
+                    metavar='',
+                    nargs="+",
+                    type=str,
+                    help='''Exon file names''')
+raxml.add_argument('-m','--model',
+                    metavar="",
+                    type=str,
+                    default = 'GTRGAMMA',
+                    help='[Optional] Evolutionary model [Defaul = GTRGAMMA]')
+raxml.add_argument('-b','--bootstrap',
+                    metavar="",
+                    type=int,
+                    default = 1000,
+                    help='[Optional] Iterations for both ML search and bootstraps [Defaul = 1000]')
+raxml.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] number of cpus [Default = 1]')    
+
+# Raxml Tree  ------------------------------------------------------
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -348,6 +391,15 @@ def main():
             controlfile = wholeargs.control_file,
             filetype    = wholeargs.type,
             threads     = wholeargs.threads,
+        ).run()
+
+    elif wholeargs.subcommand == "raxmltree":
+        # print(wholeargs) 
+        Raxml(
+            alignments = wholeargs.exonfiles,
+            evomodel   = wholeargs.model,
+            bootstrap  = wholeargs.bootstrap,
+            threads    = wholeargs.threads
         ).run()
 
 if __name__ == "__main__":
