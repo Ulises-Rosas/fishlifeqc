@@ -80,8 +80,11 @@ class Raxml:
             shutil.rmtree(newwd)
             return None
         else:
+            try:
+                os.remove( myaln + ".reduced" )
+            except FileNotFoundError:
+                pass
 
-            os.remove( myaln + ".reduced" )
             return newwd
 
     def __get_ML_tree__(self, myaln, newwd):
@@ -111,7 +114,10 @@ class Raxml:
             shutil.rmtree(newwd)
             return False
         else:
-            os.remove( myaln + ".reduced" )
+            try:
+                os.remove( myaln + ".reduced" )
+            except FileNotFoundError:
+                pass
             return True
 
     def __get_genetree__(self, myaln, newwd):

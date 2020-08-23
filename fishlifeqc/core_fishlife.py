@@ -266,6 +266,11 @@ raxml.add_argument('-s','--matrixname',
                     help='''[Optional] If `-c` is selected, this 
                             option specify the concatenated file name 
                             [Defaul = mysupermatrix]''')
+raxml.add_argument('-f','--raxmlfailures',
+                    metavar="",
+                    type=str,
+                    default = "raxml_failures.txt",
+                    help='''[Optional] File where raxml failures are located''')
 raxml.add_argument('-m','--model',
                     metavar="",
                     type=str,
@@ -326,12 +331,13 @@ def main():
     elif wholeargs.subcommand == "raxmltree":
         # print(wholeargs) 
         Raxml(
-            alignments   = wholeargs.exonfiles,
-            concatenate  = wholeargs.concatenate, # false
-            name_concate = wholeargs.matrixname,
-            evomodel     = wholeargs.model,
-            bootstrap    = wholeargs.bootstrap,
-            threads      = wholeargs.threads
+            alignments     = wholeargs.exonfiles,
+            concatenate    = wholeargs.concatenate, # false
+            name_concate   = wholeargs.matrixname,
+            evomodel       = wholeargs.model,
+            bootstrap      = wholeargs.bootstrap,
+            threads        = wholeargs.threads,
+            raxml_failures = wholeargs.raxmlfailures,
         ).run()
 
 if __name__ == "__main__":
