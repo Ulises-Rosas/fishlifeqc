@@ -9,7 +9,23 @@ import argparse
 def getOpts():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     description='Pack (or unpack) files into directories',
+                                     description="""
+			Pack (or unpack) files into directories
+
+	* Pack files into 40 directories:
+
+	    $ splitexonfiles.py [exon files] -w . -n 40 
+
+	* Unpack directories:
+
+	    $ splitexonfiles.py -u partition* -w .
+	 
+	    note: The first command packs into directories
+		  with the following pattern: `partition[0-9]+`.
+		  That's why in this second command we use
+		  `partition*` glob pattern for covering all 
+                  previously created directories. 
+""",
                                      epilog="")
     parser.add_argument('glob',
                         nargs="+",
