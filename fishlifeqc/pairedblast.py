@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 
 import runshell
 import fishlifeseq
-from fishlifeqc.utils import isfasta
+from fishlifeqc.utils import isfasta,fas_to_dic
 
 myos = sys.platform
 
@@ -51,15 +51,21 @@ class Pairedblast:
                 sequences = None,
                 taxonomy  = None,
                 threads   = 1,
+                outname = "mismatch_pairedblastn.txt",
                 threshold = 95):
         """
         makeblastdb –in mydb.fsa –dbtype nucl
         blastn -db db -query query -out  out -outfmt 5 -perc_identity 95
         """
-        self.threads   = threads
-        self.sequences = sequences
-        self.taxonomy  = taxonomy
-        self.threshold = threshold
+        self.threads      = threads
+        self.sequences    = sequences
+        self.taxonomy     = taxonomy
+        self.threshold    = threshold
+        self.outname      = outname
+        self.blastfailure = outname + "_failed_to_makeblastdb"
+
+        self.suffix       = "_rblastd"
+        self.failedelete  = outname + "_failed_to_delete"
 
         self.blastnexec = BLASTN
         self.PREFIX     = "noaln_"
@@ -188,24 +194,6 @@ class Pairedblast:
         else:
             return None
 
-    def iteratedbproduction(self):
-
-        with Pool(processes = self.threads) as p:
-            mydbs = [*p.map(self.generatedb, self.sequences)]            
-        # mydbs = [*map(self.generatedb, 
-        # ["../data/test_hyphen.txt", "../data/exon1.txt"])]
-
-        try:
-            os.remove(self.makeblastlogfil)
-            os.remove(self.makeblastlogfil.split(".")[0] + ".perf")
-        except FileNotFoundError:
-            pass
-
-        passed = list(filter(None, mydbs))
-        failed = list(set(self.sequences) - set(passed))
-
-        return (passed, failed)
-
     def blastn(self, sequence):
         # sequence = "../data/test_hyphen.txt"
 
@@ -263,22 +251,109 @@ class Pairedblast:
 
         return list(set(out))
 
-    def iterateblastn(self, passed):
+
+    def constraint(self, myoutliers):
+
+        myfile, badheaders = myoutliers
+
+        myfasta  = fas_to_dic(myfile)
+
+        newfasta = {}
+        for h,s in myfasta.items():
+
+            if not h.replace(">", "") in set(badheaders):
+                newfasta[h] = s
+
+        if not newfasta:
+            sys.stderr.write("'%s' file got all mismatched\n" % myfile)
+            sys.stderr.flush()
+            return myfile
+
+        with open( myfile + self.suffix, 'w') as f:
+            for h,s in newfasta.items():
+                f.write("%s\n%s\n" % (h,s))
+        return None
+
+    def rebranding(self, myfile):
+        myfasta  = fas_to_dic(myfile)
+
+        with open( myfile + self.suffix, 'w') as f:
+            for h,s in myfasta.items():
+                f.write("%s\n%s\n" % (h,s))
+
+    def run(self):
+
+        self.checktaxonomyfile()
 
         with Pool(processes = self.threads) as p:
-            preout = [*p.map(self.blastn, passed)]
 
-        # preout = [*map(self.blastn, 
-        # ["../data/test_hyphen.txt", "../data/exon1.txt"])]
+            ok_sequences = set(self.sequences)
 
-        preout = filter(None, preout)
+            mydbs = [*p.map(self.generatedb, ok_sequences)]            
 
-        if preout:
-            out  = []
-            for i in preout:
-                out += i
+            try:
+                os.remove(self.makeblastlogfil)
+                os.remove(self.makeblastlogfil.split(".")[0] + ".perf")
+            except FileNotFoundError:
+                pass
 
-            return out
+            passed = list(filter(None, mydbs))
+            failed = list(ok_sequences - set(passed))
 
-        else:
-            return None
+            # return (passed, failed)
+            # passed, failed = self.iteratedbproduction()
+
+            if failed:
+                ok_sequences -= set(failed)
+
+                with open(self.blastfailure, "w") as f:
+                    for i in failed:
+                        f.write(i + "\n")
+
+            if passed:
+
+                preout = [*p.map(self.blastn, passed)]
+                preout = list(filter(None, preout))
+
+                if preout:
+
+                    outliers  = []
+                    for po in preout:
+                        outliers.extend(po)
+
+                    badseqs = {}
+                    with open(self.outname, 'w') as f:
+                        f.write("exon,sample,group\n")
+
+                        for exon,spps,group in outliers:
+
+                            ok_sequences -= set([exon])
+                            if badseqs.__contains__(exon):
+                               badseqs[exon] += [spps]
+                            else:
+                                badseqs[exon] = [spps]
+
+                            f.write("%s,%s,%s\n" %  (exon, spps, group))
+
+                    failed = [*p.map(self.constraint, tuple(badseqs.items()))]
+                    failed = list(filter(None, failed))
+
+                    if failed:
+                        with open(self.failedelete, 'w') as f:
+                            for i in failed:
+                                f.write( i + "\n")
+
+            [*p.map(self.rebranding, ok_sequences)]
+
+
+# taxonomy  =  'data/taxonomy_genera.txt'
+# sequences = ['data/mock1.txt',
+#              'data/mock2.txt',
+#              'data/mock3.txt']
+
+# Pairedblast(sequences = sequences,
+#             taxonomy  = taxonomy,
+#             threads   = 4,
+#             outname     = "mismatch_pairedblastn.txt",
+#             threshold = 90).run()
+

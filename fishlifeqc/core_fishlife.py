@@ -5,10 +5,8 @@ import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch  import Boldesearch
-from fishlifeqc.delete      import Deletion
 from fishlifeqc.genetrees   import Raxml
 
-PB_MAKEBLASTFAILURE = "failed_to_makeblastdb.txt"
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
 PB_THRESOLD         = 95.0
 BS_BOLD_DB          = 'COX1_SPECIES_PUBLIC'
@@ -226,63 +224,6 @@ boldsearch.add_argument('-o','--out',
                         help='Output name [Default = `sequence` + _bold ]' )
 # bold search ------------------------------------------------------
 
-
-# Deletion    ------------------------------------------------------
-
-deletion = subparsers.add_parser('delete',
-                                    help = "Delete specific sequences from fasta files",
-                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
-                                    description="""
-
-                                Deletion
-
-            Specific sequences are deleted from fasta files and export
-            those files in a new fasta file. Sequences should be
-            indicated in a file.
-
-- Examples:
-
-    * usage
-
-        $ fishlifeqc delete [control file] -t [type of process it comes from]
-
-    * delete outlier sequences from the reciprocal blast command:
-
-        $ fishlifeqc delete mismatch_pairedblastn.txt -t rblast
-
-        where `mismatch_pairedblastn.txt` is CSV-formated and contains
-        the following:
-
-            exon      sample                  group
-            file1     [sequence header 1]     [group of header 1] 
-            file1     [sequence header 2]     [group of header 2]
-            file2     [sequence header 1]     [group of header 1] 
-            file2     [sequence header 2]     [group of header 2]
-            ...       ...                     ...
-
-        For each `exon` (i.e. fasta files), this script will delete all
-        `samples` (i.e. sequences with the corresponding headers)
-
-Output name: [fasta file] + '_deletion'
-""")
-deletion.add_argument('control_file', 
-                        metavar='',
-                        type=str,
-                        help='''File with the information of 
-                                sequences ''')
-deletion.add_argument('-t','--type',
-                        metavar="",
-                        choices=['rblast'],
-                        default = 'rblast',
-                        help='Type of process where contro_files comes from')
-deletion.add_argument('-n', '--threads',
-                        metavar = "",
-                        type    = int,
-                        default = 1,
-                        help    = '[Optional] number of cpus [Default = 1]')    
-# Deletion    ------------------------------------------------------
-
-
 # Raxml Tree  ------------------------------------------------------
 raxml = subparsers.add_parser('raxmltree',
                                 help = "Get raxml trees for each exon",
@@ -349,68 +290,38 @@ def main():
     if wholeargs.subcommand == "mdata":
         # print(wholeargs)
         Missingdata(
-                fastas = wholeargs.sequences, 
-                htrim = wholeargs.coverage, 
-                vtrim = wholeargs.edges, 
+                fastas       = wholeargs.sequences, 
+                htrim        = wholeargs.coverage, 
+                vtrim        = wholeargs.edges, 
                 outputsuffix = wholeargs.out, 
-                trimedges = wholeargs.verticaltrim, # default false
-                codon_aware = wholeargs.codon_aware, # default false
-                mtlib = wholeargs.mt, # default true
-                threads = wholeargs.threads
+                trimedges    = wholeargs.verticaltrim, # default false
+                codon_aware  = wholeargs.codon_aware, # default false
+                mtlib        = wholeargs.mt, # default true
+                threads      = wholeargs.threads
             ).run()
 
     elif wholeargs.subcommand == "rblast":
 
-        pblast = Pairedblast(
-                        sequences = wholeargs.sequences,
-                        taxonomy  = wholeargs.taxonomy,
-                        threads   = wholeargs.threads,
-                        threshold = wholeargs.identity
-                        )
-
-        pblast.checktaxonomyfile()
-
-        passed, failed = pblast.iteratedbproduction()
-
-        if failed:
-            with open(PB_MAKEBLASTFAILURE, "w") as f:
-                for i in failed:
-                    f.write(i + "\n")
-
-        if passed:
-
-            outliers = pblast.iterateblastn(passed)
-
-            if outliers:
-                
-                with open(wholeargs.out, 'w') as f:
-
-                    f.write("exon,sample,group\n")
-
-                    for exon,spps,group in outliers:
-                        f.write(  "%s,%s,%s\n" %  (exon, spps, group) )
+        Pairedblast(
+            sequences = wholeargs.sequences,
+            taxonomy  = wholeargs.taxonomy,
+            threads   = wholeargs.threads,
+            outname   = wholeargs.out,
+            threshold = wholeargs.identity
+        ).run()
 
     elif wholeargs.subcommand == "bold":
         
         Boldesearch(
-            sequence = wholeargs.sequence,
-            bolddatabase = wholeargs.bold_db,
-            make_blast = wholeargs.ncbi,
-            quiet = wholeargs.quiet,
-            taxonomyfile = wholeargs.taxonomy,
+            sequence           = wholeargs.sequence,
+            bolddatabase       = wholeargs.bold_db,
+            make_blast         = wholeargs.ncbi,
+            quiet              = wholeargs.quiet,
+            taxonomyfile       = wholeargs.taxonomy,
             removeintermediate = wholeargs.keep,
-            threshold = wholeargs.threshold,
-            outfile = wholeargs.out
+            threshold          = wholeargs.threshold,
+            outfile            = wholeargs.out
         ).id_engine()
-
-    elif wholeargs.subcommand == "delete":
-        # print(wholeargs)
-
-        Deletion(
-            controlfile = wholeargs.control_file,
-            filetype    = wholeargs.type,
-            threads     = wholeargs.threads,
-        ).run()
 
     elif wholeargs.subcommand == "raxmltree":
         # print(wholeargs) 
