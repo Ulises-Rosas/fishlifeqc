@@ -297,15 +297,34 @@ raxml = subparsers.add_parser('raxmltree',
 
         $ fishlifeqc raxmltree [exon files]
 
-        Where the GTRGAMMA model and 1000 bootstrap 
-        are default settings
+        Where the GTRGAMMA model (`-m` option) and 
+        1000 bootstrap (`-b` option) are default settings
 
+    * Concatenate exon files and use it as unique input
+      to RAxML
+
+        $ fishlifeqc raxmltree [exon files] -c
+
+        Where the supermatrix is called `mysupermatrix.txt`
+        as default.
 """)
 raxml.add_argument('exonfiles', 
                     metavar='',
                     nargs="+",
                     type=str,
                     help='''Exon file names''')
+raxml.add_argument('-c', '--concatenate',
+                    action='store_true',
+                    help='''[Optional] If selected, concatenate 
+                            exon files and use it as unique 
+                            input for RAxML [Default: OFF]''')
+raxml.add_argument('-s','--matrixname',
+                    metavar="",
+                    type=str,
+                    default = 'mysupermatrix.txt',
+                    help='''[Optional] If `-c` is selected, this 
+                            option specify the concatenated file name 
+                            [Defaul = mysupermatrix]''')
 raxml.add_argument('-m','--model',
                     metavar="",
                     type=str,
@@ -396,10 +415,12 @@ def main():
     elif wholeargs.subcommand == "raxmltree":
         # print(wholeargs) 
         Raxml(
-            alignments = wholeargs.exonfiles,
-            evomodel   = wholeargs.model,
-            bootstrap  = wholeargs.bootstrap,
-            threads    = wholeargs.threads
+            alignments   = wholeargs.exonfiles,
+            concatenate  = wholeargs.concatenate, # false
+            name_concate = wholeargs.matrixname,
+            evomodel     = wholeargs.model,
+            bootstrap    = wholeargs.bootstrap,
+            threads      = wholeargs.threads
         ).run()
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import sys
 import argparse
 from multiprocessing import Pool
 from fishlifeqc.utils import isfasta
-from boldminer.utils import fas_to_dic
+from fishlifeqc.utils import fas_to_dic
 
 FAILEDTOTRIM = "failed_to_trim.txt"
 

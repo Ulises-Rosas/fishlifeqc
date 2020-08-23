@@ -3,6 +3,8 @@ import sys
 import shutil
 
 import runshell
+import fishlifeseq
+from fishlifeqc.concatenate import Concatenate
 
 myos = sys.platform
 
@@ -18,17 +20,23 @@ elif myos == 'win32':
 class Raxml:
 
     def __init__(self, 
-                 alignments = None,
+                 alignments   = None,
+                 concatenate  = False,
+                 name_concate = "mysupermatrix.txt",
                  raxml_exe  = RAXML,
                  evomodel   = "GTRGAMMA",
                  bootstrap  = 10,
+                 raxml_failures = "raxml_failures.txt",
                  threads    = 1):
 
-        self.alignments = alignments
+        self.alignments   = alignments
+        self.concatenate  = concatenate
+        self.name_concate = name_concate
         self.raxml_exe  = RAXML
         self.evomodel   = evomodel
         self.bootstrap  = bootstrap
         self.threads    = threads
+        self.RAXML_FAIL = raxml_failures
 
         self.parsimonyseed = 12345
         self.bootstrapseed = 12345
@@ -109,6 +117,8 @@ class Raxml:
     def __get_genetree__(self, myaln, newwd):
 
         oldwd      = os.path.dirname(myaln)
+        if not oldwd:
+            oldwd = "."
         mltree     = os.path.join(newwd, "RAxML_bestTree.ML")
         bootstraps = os.path.join(newwd, "RAxML_bootstrap.bootstrap")
 
@@ -151,11 +161,24 @@ class Raxml:
         return True
     
     def run(self):
-        RAXML_FAIL = "raxml_failures.txt"
+        # RAXML_FAIL = "raxml_failures.txt"
 
         f_boot = []
         f_ml   = []
         f_join = []
+
+        if self.concatenate:
+
+            concaclass = Concatenate(
+                            alignments      = self.alignments,
+                            supermatrixname = self.name_concate,
+                            partitionsname  = self.name_concate + "_partitions",
+                            threads         = self.threads
+                        )
+
+            concaclass.run()
+
+            self.alignments = [self.name_concate]
 
         for aln in self.alignments:
 
@@ -179,7 +202,7 @@ class Raxml:
 
         if f_boot or f_ml or f_join:
 
-            with open(RAXML_FAIL, "w") as f:
+            with open(self.RAXML_FAIL, "w") as f:
 
                 f.write("file,what_process\n")
 
@@ -196,7 +219,10 @@ class Raxml:
                         f.write("%s,ml\n" % i)
 
 # Raxml(
-#     alignments = ['data/E0537.NT_aligned.fasta_trimmed_rblastd'],
+#     alignments = ['data/E0537.NT_aligned.fasta_trimmed_rblastd', 
+#                   'data/mock1.txt' ],
+#     concatenate= True,
+#     name_concate= "mysupermatrix.txt",
 #     raxml_exe  = RAXML,
 #     evomodel   = "GTRGAMMA",
 #     bootstrap  = 5,

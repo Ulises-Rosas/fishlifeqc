@@ -3,7 +3,7 @@ import re
 import sys
 
 import fishlifeseq
-from boldminer.utils import fas_to_dic
+from fishlifeqc.utils import fas_to_dic
 from boldminer.id_engine import id_engine 
 
 class Taxonomychecks:

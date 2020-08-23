@@ -1,6 +1,6 @@
 import os
 from multiprocessing import Pool
-from boldminer.utils import fas_to_dic
+from fishlifeqc.utils import fas_to_dic
 
 class Deletion:
 
