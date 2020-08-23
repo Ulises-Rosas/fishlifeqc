@@ -28,17 +28,20 @@ To look at the help page of `pairedblast`, you can use:
 fishlifeqc -h
 ```
 
-```
-usage: fishlifeqc [-h] {mdata,rblast} ...
+```usage: fishlifeqc [-h] {mdata,rblast,bold,delete,raxmltree} ...
 
                                  Quality Control Steps
                                       
 
 positional arguments:
-  {mdata,rblast}
-    mdata         Trim sequences in function of gap ocurrences
-    rblast        Reciprocal blastn comparing taxonomical groups
+  {mdata,rblast,bold,delete,raxmltree}
+    mdata               Trim sequences in function of gap ocurrences
+    rblast              Reciprocal blastn comparing taxonomical groups
+    bold                Look for matches between sequences and the BOLD
+                        database
+    delete              Delete specific sequences from fasta files
+    raxmltree           Get raxml trees for each exon
 
 optional arguments:
-  -h, --help      show this help message and exit
+  -h, --help            show this help message and exit
 ```
