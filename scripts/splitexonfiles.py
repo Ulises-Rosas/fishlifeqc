@@ -18,7 +18,7 @@ def getOpts():
 
 	* Unpack directories:
 
-	    $ splitexonfiles.py partition* -w .
+	    $ splitexonfiles.py -u partition* -w .
 	 
 	    note: The first command packs into directories
 		  with the following pattern: `partition[0-9]+`.
