@@ -49,8 +49,9 @@ def pack(myfiles, npart, where, prefix):
         os.mkdir(newdir)
 
         for f in names:
-            shutil.copy(f, newdir)
-            os.remove(f)
+            if not os.path.isdir(f):
+                shutil.copy(f, newdir)
+                os.remove(f)
 
         init += window
 
