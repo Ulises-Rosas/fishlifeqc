@@ -241,6 +241,10 @@ raxml = subparsers.add_parser('raxmltree',
         Where the GTRGAMMA model (`-m` option) and 
         1000 bootstrap (`-b` option) are default settings
 
+    * Specify raxml failures file name:
+
+        $ fishlifeqc raxmltree [exon files] -f raxml_failures.txt
+
     * Concatenate exon files and use it as unique input
       to RAxML
 
@@ -270,7 +274,7 @@ raxml.add_argument('-f','--raxmlfailures',
                     metavar="",
                     type=str,
                     default = "raxml_failures.txt",
-                    help='''[Optional] File where raxml failures are located''')
+                    help='''[Optional] File where raxml failures are located [Default = "raxml_failures.txt"]''')
 raxml.add_argument('-m','--model',
                     metavar="",
                     type=str,
@@ -280,7 +284,7 @@ raxml.add_argument('-b','--bootstrap',
                     metavar="",
                     type=int,
                     default = 1000,
-                    help='[Optional] Iterations for both ML search and bootstraps [Defaul = 1000]')
+                    help='[Optional] Iterations for both ML search and bootstraps [Default = 1000]')
 raxml.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,

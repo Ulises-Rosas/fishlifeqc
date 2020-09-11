@@ -63,7 +63,11 @@ setup(name="fishlifeqc",
             'fishlifeqc   = fishlifeqc.core_fishlife:main',
             ]
         },
-      scripts=['./scripts/splitexonfiles.py'],
+      scripts=[
+          './scripts/splitexonfiles.py',
+          './scripts/codomco.py',
+          './scripts/deleteheaders.py'
+          ],
       classifiers=[
           'Programming Language :: Python :: 3'
       ]
