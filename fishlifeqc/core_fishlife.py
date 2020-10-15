@@ -5,7 +5,7 @@ import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch  import Boldesearch
-from fishlifeqc.genetrees   import Raxml
+# from fishlifeqc.genetrees   import Raxml
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
 PB_THRESOLD         = 95.0
@@ -79,7 +79,7 @@ missingdata.add_argument('-t','--codon_aware',
                     help='[Optional] If `-v` and this option are selected, trimming is done by triplets')
 missingdata.add_argument('-m','--mt',
                     action="store_true",
-                    help='''[Optional] If `-a` is selected and this option are selected,
+                    help='''[Optional] If `-t` is selected and this option are selected,
                      the mitochondrial vertebrate lib of stop codonds is used''')
 missingdata.add_argument('-n', '--threads',
                     metavar = "",
@@ -165,7 +165,7 @@ pairedblast.add_argument('-o','--out',
 
 # bold search ------------------------------------------------------
 boldsearch = subparsers.add_parser('bold',
-                                    help = "Look for matches between sequences and the BOLD database",
+                                    help = "Match sequences against the BOLD database",
                                     formatter_class = argparse.RawDescriptionHelpFormatter, 
                                     description="""
 
@@ -225,71 +225,71 @@ boldsearch.add_argument('-o','--out',
 # bold search ------------------------------------------------------
 
 # Raxml Tree  ------------------------------------------------------
-raxml = subparsers.add_parser('raxmltree',
-                                help = "Get raxml trees for each exon",
-                                formatter_class = argparse.RawDescriptionHelpFormatter, 
-                                description="""
+# raxml = subparsers.add_parser('raxmltree',
+#                                 help = "Get raxml trees for each exon",
+#                                 formatter_class = argparse.RawDescriptionHelpFormatter, 
+#                                 description="""
 
-                                RAxML trees
+#                                 RAxML trees
 
-- Examples:
+# - Examples:
 
-    * Usage
+#     * Usage
 
-        $ fishlifeqc raxmltree [exon files]
+#         $ fishlifeqc raxmltree [exon files]
 
-        Where the GTRGAMMA model (`-m` option) and 
-        1000 bootstrap (`-b` option) are default settings
+#         Where the GTRGAMMA model (`-m` option) and 
+#         1000 bootstrap (`-b` option) are default settings
 
-    * Specify raxml failures file name:
+#     * Specify raxml failures file name:
 
-        $ fishlifeqc raxmltree [exon files] -f raxml_failures.txt
+#         $ fishlifeqc raxmltree [exon files] -f raxml_failures.txt
 
-    * Concatenate exon files and use it as unique input
-      to RAxML
+#     * Concatenate exon files and use it as unique input
+#       to RAxML
 
-        $ fishlifeqc raxmltree [exon files] -c
+#         $ fishlifeqc raxmltree [exon files] -c
 
-        Where the supermatrix is called `mysupermatrix.txt`
-        as default.
-""")
-raxml.add_argument('exonfiles', 
-                    metavar='',
-                    nargs="+",
-                    type=str,
-                    help='''Exon file names''')
-raxml.add_argument('-c', '--concatenate',
-                    action='store_true',
-                    help='''[Optional] If selected, concatenate 
-                            exon files and use it as unique 
-                            input for RAxML [Default: OFF]''')
-raxml.add_argument('-s','--matrixname',
-                    metavar="",
-                    type=str,
-                    default = 'mysupermatrix.txt',
-                    help='''[Optional] If `-c` is selected, this 
-                            option specify the concatenated file name 
-                            [Defaul = mysupermatrix]''')
-raxml.add_argument('-f','--raxmlfailures',
-                    metavar="",
-                    type=str,
-                    default = "raxml_failures.txt",
-                    help='''[Optional] File where raxml failures are located [Default = "raxml_failures.txt"]''')
-raxml.add_argument('-m','--model',
-                    metavar="",
-                    type=str,
-                    default = 'GTRGAMMA',
-                    help='[Optional] Evolutionary model [Defaul = GTRGAMMA]')
-raxml.add_argument('-b','--bootstrap',
-                    metavar="",
-                    type=int,
-                    default = 1000,
-                    help='[Optional] Iterations for both ML search and bootstraps [Default = 1000]')
-raxml.add_argument('-n', '--threads',
-                    metavar = "",
-                    type    = int,
-                    default = 1,
-                    help    = '[Optional] number of cpus [Default = 1]')    
+#         Where the supermatrix is called `mysupermatrix.txt`
+#         as default.
+# """)
+# raxml.add_argument('exonfiles', 
+#                     metavar='',
+#                     nargs="+",
+#                     type=str,
+#                     help='''Exon file names''')
+# raxml.add_argument('-c', '--concatenate',
+#                     action='store_true',
+#                     help='''[Optional] If selected, concatenate 
+#                             exon files and use it as unique 
+#                             input for RAxML [Default: OFF]''')
+# raxml.add_argument('-s','--matrixname',
+#                     metavar="",
+#                     type=str,
+#                     default = 'mysupermatrix.txt',
+#                     help='''[Optional] If `-c` is selected, this 
+#                             option specify the concatenated file name 
+#                             [Defaul = mysupermatrix]''')
+# raxml.add_argument('-f','--raxmlfailures',
+#                     metavar="",
+#                     type=str,
+#                     default = "raxml_failures.txt",
+#                     help='''[Optional] File where raxml failures are located [Default = "raxml_failures.txt"]''')
+# raxml.add_argument('-m','--model',
+#                     metavar="",
+#                     type=str,
+#                     default = 'GTRGAMMA',
+#                     help='[Optional] Evolutionary model [Defaul = GTRGAMMA]')
+# raxml.add_argument('-b','--bootstrap',
+#                     metavar="",
+#                     type=int,
+#                     default = 1000,
+#                     help='[Optional] Iterations for both ML search and bootstraps [Default = 1000]')
+# raxml.add_argument('-n', '--threads',
+#                     metavar = "",
+#                     type    = int,
+#                     default = 1,
+#                     help    = '[Optional] number of cpus [Default = 1]')    
 
 # Raxml Tree  ------------------------------------------------------
 
@@ -332,17 +332,17 @@ def main():
             outfile            = wholeargs.out
         ).id_engine()
 
-    elif wholeargs.subcommand == "raxmltree":
-        # print(wholeargs) 
-        Raxml(
-            alignments     = wholeargs.exonfiles,
-            concatenate    = wholeargs.concatenate, # false
-            name_concate   = wholeargs.matrixname,
-            evomodel       = wholeargs.model,
-            bootstrap      = wholeargs.bootstrap,
-            threads        = wholeargs.threads,
-            raxml_failures = wholeargs.raxmlfailures,
-        ).run()
+    # elif wholeargs.subcommand == "raxmltree":
+    #     # print(wholeargs) 
+    #     Raxml(
+    #         alignments     = wholeargs.exonfiles,
+    #         concatenate    = wholeargs.concatenate, # false
+    #         name_concate   = wholeargs.matrixname,
+    #         evomodel       = wholeargs.model,
+    #         bootstrap      = wholeargs.bootstrap,
+    #         threads        = wholeargs.threads,
+    #         raxml_failures = wholeargs.raxmlfailures,
+    #     ).run()
 
 if __name__ == "__main__":
     main()

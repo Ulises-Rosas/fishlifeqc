@@ -22,26 +22,23 @@ python3 setup.py install_data
 
 ## Usage
 
-To look at the help page of `pairedblast`, you can use:
-
 ```Bash
 fishlifeqc -h
 ```
 
-```usage: fishlifeqc [-h] {mdata,rblast,bold,delete,raxmltree} ...
+```
+usage: fishlifeqc [-h] {mdata,rblast,bold} ...
 
                                  Quality Control Steps
                                       
 
 positional arguments:
-  {mdata,rblast,bold,delete,raxmltree}
-    mdata               Trim sequences in function of gap ocurrences
-    rblast              Reciprocal blastn comparing taxonomical groups
-    bold                Look for matches between sequences and the BOLD
-                        database
-    delete              Delete specific sequences from fasta files
-    raxmltree           Get raxml trees for each exon
+  {mdata,rblast,bold}
+    mdata              Trim sequences in function of gap ocurrences
+    rblast             Reciprocal blastn comparing taxonomical groups
+    bold               Match sequences against the BOLD database
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help           show this help message and exit
+
 ```
