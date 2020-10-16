@@ -31,7 +31,7 @@ class Taxonomychecks:
         with open(self.taxonomyfile, 'r') as f:
             for l in f.readlines():
                 # print(l.strip().split(","))
-                seq, _, spps = l.strip().split(",")
+                seq, spps = l.strip().split(",")
                 out[seq] = spps
 
         return out

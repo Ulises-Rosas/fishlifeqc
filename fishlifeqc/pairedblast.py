@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 import runshell
 import fishlifeseq
 from fishlifeqc.utils import isfasta,fas_to_dic
+from fishlifeqc.missingdata import Missingdata
 
 myos = sys.platform
 
@@ -50,6 +51,7 @@ class Pairedblast:
     def __init__(self,
                 sequences = None,
                 taxonomy  = None,
+                codon_aware = False,
                 threads   = 1,
                 outname = "mismatch_pairedblastn.txt",
                 threshold = 95):
@@ -60,6 +62,7 @@ class Pairedblast:
         self.threads      = threads
         self.sequences    = sequences
         self.taxonomy     = taxonomy
+        self.codon_aware  = codon_aware
         self.threshold    = threshold
         self.outname      = outname
         self.blastfailure = outname + "_failed_to_makeblastdb"
@@ -87,7 +90,7 @@ class Pairedblast:
         with open(self.taxonomy, 'r') as f:
             for l in f.readlines():
                 # print(l.strip().split(","))
-                seq, group, _ = l.strip().split(",")
+                seq, group = l.strip().split(",")
                 out[seq] = group
         
         return out
@@ -240,6 +243,8 @@ class Pairedblast:
         if not failedtoblast:
             [*map(os.remove, glob.glob(nohyphen+".n*"))]
             os.remove(nohyphen)
+            sys.stderr.write("Processed: %s\n" % sequence )
+            sys.stderr.flush()        
 
         else:
             for line in failedtoblast:
@@ -250,7 +255,6 @@ class Pairedblast:
             return None
 
         return list(set(out))
-
 
     def constraint(self, myoutliers):
 
@@ -270,6 +274,9 @@ class Pairedblast:
             return myfile
 
         with open( myfile + self.suffix, 'w') as f:
+            # Close gaps :
+            newfasta = Missingdata().close_gaps(newfasta, self.codon_aware)
+
             for h,s in newfasta.items():
                 f.write("%s\n%s\n" % (h,s))
         return None
@@ -315,6 +322,7 @@ class Pairedblast:
                 preout = [*p.map(self.blastn, passed)]
                 preout = list(filter(None, preout))
 
+                # mismatches
                 if preout:
 
                     outliers  = []
@@ -328,6 +336,7 @@ class Pairedblast:
                         for exon,spps,group in outliers:
 
                             ok_sequences -= set([exon])
+                            
                             if badseqs.__contains__(exon):
                                badseqs[exon] += [spps]
                             else:

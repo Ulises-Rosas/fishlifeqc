@@ -29,17 +29,13 @@ missingdata = subparsers.add_parser('mdata',
 
 Examples:
 
-    * horizontal trimming with a threshold of 0.5 (default):
+    * horizontal and vertical trimming (default):
 
-        $ fishlifeqc mdata [exons] -c 0.5
+        $ fishlifeqc mdata [exons]
 
-    * vertical trimming with a threshold value of 0.6 (default):
+    * vertical trimming by codons: 
 
-        $ fishlifeqc mdata [exons] -v -e 0.6
-
-    * vertical trimming by triplets: 
-
-        $ fishlifeqc mdata [exons] -v --codon_aware
+        $ fishlifeqc mdata [exons] --codon_aware
 
         note: stop codons are also counted along the sequence.
               if a particular sequence has more than one stop
@@ -49,14 +45,25 @@ Examples:
     * vertical trimming by triplets and using mitochondrial 
       vertebrate lib of stop codons: 
 
-        $ fishlifeqc mdata [exons] -v --codon_aware --mt
+        $ fishlifeqc mdata [exons] --codon_aware --mt
+
+    * vertical trimming only:
+
+        $ fishlifeqc mdata [exons] -v
 """)
 
 missingdata.add_argument('sequences', 
-                    metavar='',
+                    metavar='exons',
                     nargs="+",
                     type=str,
                     help='''File names with sequences''')
+missingdata.add_argument('-e','--edges', 
+                    metavar="",
+                    type = float,
+                    default = 0.6,
+                    help='''[Optional] Set the vertical trimming threshold. 
+                            Sequence columns at edges with more than 
+                            this value are removed [Default: %s]''' % 0.6)
 missingdata.add_argument('-c','--coverage', 
                     metavar="",
                     type = float,
@@ -64,28 +71,24 @@ missingdata.add_argument('-c','--coverage',
                     help='''[Optional] Set the horizontal trimming threshold.
                              Sequences with more than this value are 
                              removed [Default: %s]''' % 0.5)
-missingdata.add_argument('-v','--verticaltrim',
-                    action="store_true",
-                    help='[Optional] if selected, trim at adges is applied')
-missingdata.add_argument('-e','--edges', 
-                    metavar="",
-                    type = float,
-                    default = 0.6,
-                    help='''[Optional] If `-v` is selected, set the vertical trimming threshold. 
-                            Sequence columns at edges with more than 
-                            this value are removed [Default: %s]''' % 0.6)
 missingdata.add_argument('-t','--codon_aware',
                     action="store_true",
-                    help='[Optional] If `-v` and this option are selected, trimming is done by triplets')
+                    help='[Optional] If selected, trimming is done by codons')
 missingdata.add_argument('-m','--mt',
                     action="store_true",
                     help='''[Optional] If `-t` is selected and this option are selected,
                      the mitochondrial vertebrate lib of stop codonds is used''')
+missingdata.add_argument('-v','--verticaltrim',
+                    action="store_false",
+                    help='[Optional] If selected, only trim at adges is applied')
+missingdata.add_argument('-q', '--quiet',
+                    action='store_true',
+                    help='[Optional] If selected, running messages are suppressed')
 missingdata.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
                     default = 1,
-                    help    = '[Optional] number of cpus [Default = 1]')                        
+                    help    = '[Optional] number of cpus [Default = 1]')
 missingdata.add_argument('-o','--out', 
                     metavar="",
                     default = "_trimmed",
@@ -102,42 +105,50 @@ pairedblast = subparsers.add_parser('rblast',
 
                     Reciprocal blastn comparing taxonomical groups
 
-                The expected group for each blastn with a given threshold 
-                value is the query's group.  But, only if other group is detected,
-                this one is reported at '%s' by default. 
-                Filename can be changed with `-o` option. 
-                See below for further details. 
+The expected group for each blastn with a given threshold 
+value is the query's group.  But, only if other group is detected
+ (i.e. with mismatch sequence), this one is reported. 
+Furthermore, a new file is created with sequences without
+mismatches and any gaps produced by sequence elimination are 
+also closed
+
 
 Example:
 
-    fishlifeqc rblast [exons] -t [taxonomy file]
+    * Reciprocal blastn with a threshold of 99.9%:
 
-    The taxnomy file is CSV-formated and must contain the following:
+        $ fishlifeqc rblast [exons] -t [taxonomy file] -i 99.9
 
-        names                   group                   spps
-        [sequence header 1]     [group of header 1]     [species names of header 1]
-        [sequence header 2]     [group of header 2]     [species names of header 2]
-        [sequence header 3]     [group of header 3]     [species names of header 3]
-        ...                     ...                     ...
+            note 1: The taxnomy file is CSV-formated and must 
+                    contain the following:
 
-    note 1: the spps column is not important on this step but it will at the bold
-            search command
+                    names               group              
+                    [sequence header 1],[group of header 1]
+                    [sequence header 2],[group of header 2]
+                    [sequence header 3],[group of header 3]
+                     ...                 ...            
+
+            note 2: By default, this command will create a file 
+                    with mismatches called `{0}`. The format of 
+                    this file is CSV-formated and will 
+                    contain the following:
+
+                    exon ,sample             ,group
+                    file1,[sequence header 1],[group of header 1] 
+                    file1,[sequence header 2],[group of header 2]
+                    file2,[sequence header 1],[group of header 1] 
+                    file2,[sequence header 2],[group of header 2]
+                    ...  ,      ...          ,     ...
 
 
-    note 2: By default, this command will create a file called `mismatch_pairedblastn.txt`
-            The format of this file is CSV-formated and will contain the following:
+    * Close gaps by codons:
 
-            exon      sample                  group
-            file1     [sequence header 1]     [group of header 1] 
-            file1     [sequence header 2]     [group of header 2]
-            file2     [sequence header 1]     [group of header 1] 
-            file2     [sequence header 2]     [group of header 2]
-            ...       ...                     ...
+        $ fishlifeqc rblast [exons] -t [taxonomy file] --codon_aware
 
-                                        """ % PB_OUTPUTFILENAME)
+""".format(PB_OUTPUTFILENAME))
 
 pairedblast.add_argument('sequences', 
-                    metavar='',
+                    metavar='exons',
                     nargs="+",
                     type=str,
                     help='File names with sequences. If these are aligned, an unalignment process is performed')
@@ -145,12 +156,15 @@ pairedblast.add_argument('-t','--taxonomy',
                     metavar="",
                     default = None,
                     required= True,
-                    help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+                    help='Taxonomy file. Format in csv: "[sequence name],[group]"')
 pairedblast.add_argument('-i','--identity', 
                     metavar="",
                     type = float,
                     default = PB_THRESOLD,
                     help='[Optional] Minimum identity values to perform each reciprocal blastn [Default: %s]' % PB_THRESOLD)
+pairedblast.add_argument('-c','--codon_aware',
+                    action="store_true",
+                    help='[Optional] If selected, gaps produced by sequence elimination are closed by codons')
 pairedblast.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -176,8 +190,18 @@ boldsearch = subparsers.add_parser('bold',
     BOLD: http://www.boldsystems.org/index.php/Ids_xml
     NCBI: https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi
 
-- Example:
-    fishlifeqc bold [sequence] -t [taxonomy file]
+Example:
+
+    $ fishlifeqc bold [sequence] -t [taxonomy file]
+
+        The taxnomy file is CSV-formated and must contain the following:
+
+            names               spps
+            [sequence header 1],[species names of header 1]
+            [sequence header 2],[species names of header 2]
+            [sequence header 3],[species names of header 3]
+             ...                 ...                    
+
 """)
 boldsearch.add_argument('sequence', 
                         metavar='',
@@ -224,74 +248,6 @@ boldsearch.add_argument('-o','--out',
                         help='Output name [Default = `sequence` + _bold ]' )
 # bold search ------------------------------------------------------
 
-# Raxml Tree  ------------------------------------------------------
-# raxml = subparsers.add_parser('raxmltree',
-#                                 help = "Get raxml trees for each exon",
-#                                 formatter_class = argparse.RawDescriptionHelpFormatter, 
-#                                 description="""
-
-#                                 RAxML trees
-
-# - Examples:
-
-#     * Usage
-
-#         $ fishlifeqc raxmltree [exon files]
-
-#         Where the GTRGAMMA model (`-m` option) and 
-#         1000 bootstrap (`-b` option) are default settings
-
-#     * Specify raxml failures file name:
-
-#         $ fishlifeqc raxmltree [exon files] -f raxml_failures.txt
-
-#     * Concatenate exon files and use it as unique input
-#       to RAxML
-
-#         $ fishlifeqc raxmltree [exon files] -c
-
-#         Where the supermatrix is called `mysupermatrix.txt`
-#         as default.
-# """)
-# raxml.add_argument('exonfiles', 
-#                     metavar='',
-#                     nargs="+",
-#                     type=str,
-#                     help='''Exon file names''')
-# raxml.add_argument('-c', '--concatenate',
-#                     action='store_true',
-#                     help='''[Optional] If selected, concatenate 
-#                             exon files and use it as unique 
-#                             input for RAxML [Default: OFF]''')
-# raxml.add_argument('-s','--matrixname',
-#                     metavar="",
-#                     type=str,
-#                     default = 'mysupermatrix.txt',
-#                     help='''[Optional] If `-c` is selected, this 
-#                             option specify the concatenated file name 
-#                             [Defaul = mysupermatrix]''')
-# raxml.add_argument('-f','--raxmlfailures',
-#                     metavar="",
-#                     type=str,
-#                     default = "raxml_failures.txt",
-#                     help='''[Optional] File where raxml failures are located [Default = "raxml_failures.txt"]''')
-# raxml.add_argument('-m','--model',
-#                     metavar="",
-#                     type=str,
-#                     default = 'GTRGAMMA',
-#                     help='[Optional] Evolutionary model [Defaul = GTRGAMMA]')
-# raxml.add_argument('-b','--bootstrap',
-#                     metavar="",
-#                     type=int,
-#                     default = 1000,
-#                     help='[Optional] Iterations for both ML search and bootstraps [Default = 1000]')
-# raxml.add_argument('-n', '--threads',
-#                     metavar = "",
-#                     type    = int,
-#                     default = 1,
-#                     help    = '[Optional] number of cpus [Default = 1]')    
-
-# Raxml Tree  ------------------------------------------------------
 
 def main():
 
@@ -303,9 +259,10 @@ def main():
                 htrim        = wholeargs.coverage, 
                 vtrim        = wholeargs.edges, 
                 outputsuffix = wholeargs.out, 
-                trimedges    = wholeargs.verticaltrim, # default false
+                horizontal   = wholeargs.verticaltrim, # default true
                 codon_aware  = wholeargs.codon_aware, # default false
                 mtlib        = wholeargs.mt, # default true
+                quiet        = wholeargs.quiet,
                 threads      = wholeargs.threads
             ).run()
 
