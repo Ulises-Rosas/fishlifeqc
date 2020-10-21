@@ -42,7 +42,8 @@ ext_modules = [
               ]
 
 dependencies = [
-                "boldminer",
+                "boldminer", # own package
+                'dendropy'
                 ]
 
 with open('README.md') as readme_file:
@@ -50,6 +51,7 @@ with open('README.md') as readme_file:
 
 setup(name="fishlifeqc",
       version='0.2',
+      author='Ulises Rosas',
       long_description = readme,
       long_description_content_type='text/markdown',
       url='https://github.com/Ulises-Rosas/fishlifeqc',
@@ -57,9 +59,9 @@ setup(name="fishlifeqc",
       ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
       install_requires = dependencies,
+      zip_safe = False,
       entry_points={
         'console_scripts': [
-            # 'pairedblast  = fishlifeqc.pairedblast:main',
             'fishlifeqc   = fishlifeqc.core_fishlife:main'
             ]
         },

@@ -6,18 +6,16 @@ Features:
 
 Software requierements:
 
-* Python 3
-* Git
+* pip
+* git
 
 ## Installation
 
 Get the development version:
 
 ```Bash
-git clone https://github.com/Ulises-Rosas/fishlifeqc.git
-cd fishlifeqc
-python3 setup.py install
-python3 setup.py install_data
+git clone https://github.com/Ulises-Rosas/fishlifeqc.git && cd fishlifeqc
+pip install .
 ```
 
 ## Usage
