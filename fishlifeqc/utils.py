@@ -54,6 +54,29 @@ def fas_to_dic(file):
         
     return dict(zip(keys, values))
 
+def codon_partitions_nexus(file):
+    # file = "../E1357.unaligned.fasta_listd_lily.NT_aligned.fasta_trimmed_rblastd"
+    aln = fas_to_dic(file)
+    lengths = set([len(v) for _,v in aln.items()])
+
+    if lengths.__len__() > 1:
+        sys.stderr.write("'%s' file has sequences with different lengths\n" % file)
+        sys.stderr.flush()
+        return file
+
+    aln_length = lengths.pop()
+    outname    = file + ".nex"
+
+    with open(outname, 'w') as outf:
+        outf.write("#nexus\n")
+        outf.write("begin sets;\n")
+        outf.write("\tcharset pos_1 = %s: 1-%s\\3;\n" % (file, aln_length))
+        outf.write("\tcharset pos_2 = %s: 2-%s\\3;\n" % (file, aln_length))
+        outf.write("\tcharset pos_3 = %s: 3-%s\\3;\n" % (file, aln_length))
+        outf.write("end;\n")
+
+    return None
+
 # def plotcounts(by, outliers, identity, first = 20):
 
 #     df = {}

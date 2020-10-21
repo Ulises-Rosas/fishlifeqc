@@ -1,5 +1,6 @@
 
 import os
+import argparse
 from multiprocessing import Pool
 
 import fishlifeseq
@@ -78,6 +79,52 @@ class Concatenate:
             extendedfastas     = [*p.map(self.completeseq, self.alignments)]
 
             self.reducedict(extendedfastas)
+
+def getOpts():
+
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description="""
+
+                    Concatenate sequences
+
+    * Example:
+
+        $ concatenate.py [exon files]
+""")
+    parser.add_argument('filenames',
+                        metavar = 'exons',
+                        nargs="+",
+                        help='Filenames with sequences')
+    parser.add_argument('-o','--out_name',
+                        metavar="",
+                        type= str,
+                        default= "mysupermatrix.txt",
+                        help='[Optional] Concatenate output name [Default = "mysupermatrix.txt"]') 
+    parser.add_argument('-p','--partition_name',
+                        metavar="",
+                        type= str,
+                        default= "mypartitions.txt",
+                        help='[Optional] Name of partition file [Default = "mypartitions.txt"]') 
+    parser.add_argument('-n', '--threads',
+                        metavar = "",
+                        type    = int,
+                        default = 1,
+                        help    = '[Optional] number of cpus [Default = 1]')                        
+    args = parser.parse_args()
+    return args
+
+def main():
+    args = getOpts()
+
+    Concatenate(
+        alignments = args.filenames ,
+        supermatrixname  = args.out_name,
+        partitionsname = args.partition_name,
+        threads = args.threads
+        ).run()
+
+if __name__ == "__main__":
+    main()
 
 # myfiles = ['data/COI.NT_aligned.fasta',
 #            'data/E0537.NT_aligned.fasta',
