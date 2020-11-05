@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import re
 import argparse
@@ -20,7 +22,7 @@ def getOpts():
                 [locus2],[file name with locus2]
                 [locus3],[file name with locus3]
 
-        Note 2: Exon files are have the this structure: "[locusX].*"
+        Note 2: Exon files must have the following structure: "[locusX].*"
 """)
     parser.add_argument('filenames',
                         nargs="+",
