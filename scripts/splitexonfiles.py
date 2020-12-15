@@ -47,7 +47,7 @@ def getOpts():
                         metavar="",
                         type= str,
                         default= "partition",
-                        help='[Optional] Suffix for each packing directory [Default = "partition"]') 
+                        help='[Optional] Prefix for each packing directory [Default = "partition"]') 
     args = parser.parse_args()
     return args
 

@@ -5,6 +5,7 @@ import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch  import Boldesearch
+from fishlifeqc.t_like import TreeExplore
 # from fishlifeqc.genetrees   import Raxml
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
@@ -249,6 +250,54 @@ boldsearch.add_argument('-o','--out',
 # bold search ------------------------------------------------------
 
 
+# tlike ------------------------------------------------------
+
+tlike = subparsers.add_parser('tlike',
+                                    help = "Find T-like clades in trees",
+                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                    description="""
+
+
+                    T-like finder in trees
+
+    T-like topology is formed when two or more taxa have near-zero terminal
+    branch lengths in the same terminal clade:
+
+                         | A
+                    -----|
+                         | B
+
+Example:
+
+    $ fishlifeqc tlike [tree files]
+""")
+tlike.add_argument('treefiles',
+                    nargs="+",
+                    help='Filenames')
+tlike.add_argument('-s','--schema',
+                    metavar="",
+                    type= str,
+                    default= "newick",
+                    help='[Optional] Tree format [Default: newick]') 
+tlike.add_argument('-u','--no_collapse',
+                    action="store_false",
+                    help='''[Optional] If selected, internal branches remain uncollapsed''')
+tlike.add_argument('-m', '--min_len',
+                    metavar = "",
+                    type    = float,
+                    default = 0.000001,
+                    help    = '[Optional] minimun length to collapse internal branch [Default: 0.000001]')
+tlike.add_argument('-o','--outfile',
+                    metavar="",
+                    type= str,
+                    default= "t_like.csv",
+                    help='[Optional] Out filename [Default: t_like.csv]')
+tlike.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] number of cpus [Default: 1]')    
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -288,6 +337,16 @@ def main():
             threshold          = wholeargs.threshold,
             outfile            = wholeargs.out
         ).id_engine()
+
+    elif wholeargs.subcommand == "tlike":
+        
+        TreeExplore(
+            treefiles     = wholeargs.treefiles,
+            schema        = wholeargs.schema,
+            collpasebylen = wholeargs.no_collapse, # default: true
+            minlen        = wholeargs.min_len,
+            threads       = wholeargs.threads
+        ).find_Tlikes()
 
     # elif wholeargs.subcommand == "raxmltree":
     #     # print(wholeargs) 
