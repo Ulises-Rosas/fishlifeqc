@@ -3,9 +3,20 @@
 import os
 import sys
 import csv
+import collections
 import argparse
 import dendropy
 from multiprocessing import Pool
+
+
+
+# import inspect
+# import pprint
+# def black_box(weird_obj):
+#     pprint.pprint(
+#         inspect.getmembers( weird_obj, lambda a:not(inspect.isroutine(a)) ),
+#         indent= 4
+#     )
 
 
 class TreeExplore:
@@ -17,9 +28,12 @@ class TreeExplore:
                 schema = 'newick',
                 collpasebylen = True,
                 minlen = 0,
+                collpasebysupp = True,
+                minsupp = 0,
                 outfilename = 't_like.csv',
-                threads = 1,
-                ):
+                taxnomyfile = None,
+                suffix = '_fishlife',
+                threads = 1):
         """
         initial params
         """
@@ -28,40 +42,83 @@ class TreeExplore:
         self.collapsebylen = collpasebylen
         self.minlen = minlen
 
+        self.collpasebysupp = collpasebysupp
+        self.minsupp = minsupp
+
         self.outfilename = outfilename
         self.threads = threads
 
+        self.taxonomyfile = taxnomyfile
+        self.suffix = suffix
+
     @property
-    def _trees(self):
-        print('reading trees')
-        mytrees = []
+    def _taxa(self):
 
-        for i in self.treefiles:
-            mytrees.append(
-                (i, dendropy.Tree.get(path = i, schema = self.schema))
-            )
+        if not self.taxonomyfile:
+            return None
 
-        return mytrees
+        myrows = []
+        with open(self.taxonomyfile, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                myrows.append(row)
 
-    def collapse_byLength(self, tree, minlen):
+        newnames = [i[1] for i in myrows]
+
+        duplications = []
+        for k,v in collections.Counter(newnames).items():
+            if v > 1:
+                duplications.append(k)
+
+        if duplications:
+            sys.stderr.write('\nFollowing new names are repeated:\n\n')
+            sys.stderr.flush()
+            for d in duplications:
+                sys.stderr.write(' - %s\n' % d)
+                sys.stderr.flush()
+            exit()
+
+        return { on[0]:on[1] for on in myrows  }
+
+    def collapse(self, tree):
         """
         collapse internal branch length
-        by using a minimal length value
+        by using a both branch lengths and
+        support values
         """
 
-        for nd in tree.postorder_edge_iter():
-            if nd.length is None:
+        # , bylen, minlen, bysupp, minsupp,
+        minsupp = self.minsupp
+        minlen  = self.minlen
+
+        isboth  = self.collpasebysupp and self.collapsebylen
+        islen   = not self.collpasebysupp and self.collapsebylen
+        issupp  = self.collpasebysupp and not self.collapsebylen
+
+        for ed in tree.postorder_edge_iter():
+
+            if ed.length is None:
                 continue
-            if nd.is_internal() and nd.length <= minlen:
-                    nd.collapse()
-    
-    def collapse_bySupport(self, tree, minsupp):
-        """
-        collapse internal branch length
-        by using a minimal support value
-        """
 
-        pass
+            if ed.is_internal():
+
+                if isboth:
+                    if ed.head_node.label is None:
+                        continue
+
+                    if float(ed.head_node.label) <= minsupp and ed.length <= minlen:
+                        ed.collapse()
+
+                elif islen:
+                    if ed.length <= minlen:
+                        ed.collapse()
+
+                elif issupp:
+                    if ed.head_node.label is None:
+                        continue
+
+                    if float(ed.head_node.label) <= minsupp:
+                        ed.collapse()
 
     def terminal_clades(self, tree):
         """
@@ -82,6 +139,9 @@ class TreeExplore:
 
     def _find_Tlikes(self, file_tree):
 
+        # file_tree = "../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
+        # schema = 'newick'
+
         bmfile = os.path.basename( file_tree )
 
         sys.stderr.write("Processing: %s\n" % bmfile)
@@ -89,10 +149,9 @@ class TreeExplore:
 
         tree   = dendropy.Tree.get( path = file_tree, schema = self.schema )
 
-        if self.collapsebylen:
-            self.collapse_byLength(tree, self.minlen)
+        if self.collapsebylen or self.collpasebysupp:
+            self.collapse(tree)
 
-        # print(tree.as_ascii_plot())
         newclades = self.terminal_clades(tree)
 
         clade_name = []
@@ -107,6 +166,7 @@ class TreeExplore:
                 # here v is on the 
                 # complete form of 
                 # the float
+                # print(k,v)
                 if v <= self.minlen:
                     tmp += [k]
 
@@ -130,8 +190,6 @@ class TreeExplore:
                 result = p.apply_async(self._find_Tlikes, (file_tree,))
                 preout.append(result)
 
-            # print('processing trees')
-
             out = [ ['file', 'clade'] ]
             for p in preout:
                 if p.get():
@@ -142,7 +200,43 @@ class TreeExplore:
                 writer = csv.writer(f)
                 writer.writerows(out)
 
+    def _rename_tips(self, file_tree):
+        # file_tree = '../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile'
 
+        bmfile = os.path.basename( file_tree )
+        sys.stderr.write("Processing: %s\n" % bmfile)
+        sys.stderr.flush()
+
+        tree = dendropy.Tree.get(
+                    path   = file_tree,
+                    schema = self.schema,
+                    preserve_underscores = True)
+
+        tree.as_string(schema = self.schema)
+
+        name_set = self._taxa
+
+        for i in range(len(tree.taxon_namespace)):
+            tipname = tree.taxon_namespace[i].label
+            if name_set.__contains__(tipname):
+                tree.taxon_namespace[i].label = name_set[tipname]
+
+        tree.write(path = file_tree + self.suffix, schema = 'newick')
+
+    def rename_tips(self):
+
+        if not self.taxonomyfile:
+            sys.stderr.write("No taxonomy file provided\n")
+            sys.stderr.flush()
+            return None
+
+        self._taxa
+
+        with Pool(processes = self.threads) as p:
+            for file_tree in self.treefiles:
+                p.apply_async(self._rename_tips, (file_tree,)).get()
+
+# self = TreeExplore(taxnomyfile= "./../name_map.csv", treefiles=['./../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile'])
 # def getOpts():
 
 #     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -154,41 +248,64 @@ class TreeExplore:
 #     parser.add_argument('treefiles',
 #                         nargs="+",
 #                         help='Filenames')
-#     parser.add_argument('-s','--schema',
+#     parser.add_argument('-f','--format',
 #                         metavar="",
 #                         type= str,
 #                         default= "newick",
 #                         help='[Optional] Tree format [Default: newick]') 
-#     parser.add_argument('-u','--no_collapse',
-#                         action="store_false",
-#                         help='''[Optional] If selected, no collapse internal branches by length''')
-#     parser.add_argument('-m', '--min_len',
+#     parser.add_argument('-l','--collapse_bylen',
+#                         action="store_true",
+#                         help='''[Optional] If selected, collapse internal branches by length''')
+#     parser.add_argument('-L', '--min_len',
 #                         metavar = "",
 #                         type    = float,
 #                         default = 0.000001,
-#                         help    = '[Optional] minimun length to collapse internal branch [Default: 0.000001]')
+#                         help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
+#     parser.add_argument('-s','--collapse_bysupp',
+#                         action="store_true",
+#                         help='''[Optional] If selected, collapse internal branches by support value''')
+#     parser.add_argument('-S', '--min_supp',
+#                         metavar = "",
+#                         type    = float,
+#                         default = 0,
+#                         help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
 #     parser.add_argument('-o','--outfile',
 #                         metavar="",
 #                         type= str,
 #                         default= "t_like.csv",
 #                         help='[Optional] Out filename [Default: t_like.csv]')
+#     parser.add_argument('-t','--taxonomyfile',
+#                         metavar="",
+#                         type= str,
+#                         default= None,
+#                         help='[Optional] Taxonomy file [Default: None]') 
+#     parser.add_argument('-a','--suffix',
+#                         metavar="",
+#                         type= str,
+#                         default= "_fishlife",
+#                         help='[Optional] Append a suffix at output files [Default: _fishlife]')         
 #     parser.add_argument('-n', '--threads',
 #                         metavar = "",
 #                         type    = int,
 #                         default = 1,
-#                         help    = '[Optional] number of cpus [Default: 1]')                        
+#                         help    = '[Optional] number of cpus [Default: 1]')          
 #     args = parser.parse_args()
 #     return args
 
 # def main():
 #     args = getOpts()
+#     # print(args)
 #     TreeExplore(
-#         treefiles=args.treefiles,
-#         schema= args.schema,
-#         collpasebylen= args.no_collapse, # default: true
-#         minlen=args.min_len,
-#         threads= args.threads
-#     ).find_Tlikes()
+#         treefiles      = args.treefiles,
+#         schema         = args.format,
+#         collpasebylen  = args.collapse_bylen, # default: false
+#         minlen         = args.min_len,
+#         collpasebysupp = args.collapse_bysupp, # default: false
+#         minsupp        = args.min_supp,
+#         taxnomyfile    = args.taxonomyfile,
+#         suffix         = args.suffix, 
+#         threads        = args.threads
+#     ).rename_tips()
 
 # if __name__ == "__main__":
 #     main()

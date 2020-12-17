@@ -258,35 +258,65 @@ tlike = subparsers.add_parser('tlike',
                                     description="""
 
 
-                    T-like finder in trees
+                T-like finder in trees
 
-    T-like topology is formed when two or more taxa have near-zero terminal
-    branch lengths in the same terminal clade:
+T-like topology is formed when two or more taxa have near-zero terminal
+branch lengths in the same terminal clade:
 
-                         | A
-                    -----|
-                         | B
+                     |A
+                -----|
+                     |B
+
+This near-zero value can be defined by the option `--min_len`.
+
+Since many reconstruction methods do not consider polytomies, t-like clades
+can be inside another t-like clade. Then, this command also collapse internal
+branches in function of either length or support values to look for wider 
+range of t-like clades.
 
 Example:
 
-    $ fishlifeqc tlike [tree files]
+    * Standar usage:
+
+        $ fishlifeqc tlike [tree files]
+
+    * Collapse internal branches by branch length:
+
+        $ fishlifeqc tlike [tree files] -l
+
+    * Collapse internal branches by support value:
+
+        $ fishlifeqc tlike [tree files] -s
+
+    * Collapse internal branches by either support value and branch lengths:
+
+        $ fishlifeqc tlike [tree files] -l -s
+
 """)
 tlike.add_argument('treefiles',
                     nargs="+",
                     help='Filenames')
-tlike.add_argument('-s','--schema',
+tlike.add_argument('-f','--format',
                     metavar="",
                     type= str,
                     default= "newick",
                     help='[Optional] Tree format [Default: newick]') 
-tlike.add_argument('-u','--no_collapse',
-                    action="store_false",
-                    help='''[Optional] If selected, internal branches remain uncollapsed''')
-tlike.add_argument('-m', '--min_len',
+tlike.add_argument('-l','--collapse_bylen',
+                    action="store_true",
+                    help='''[Optional] If selected, collapse internal branches by length''')
+tlike.add_argument('-L', '--min_len',
                     metavar = "",
                     type    = float,
                     default = 0.000001,
-                    help    = '[Optional] minimun length to collapse internal branch [Default: 0.000001]')
+                    help    = '[Optional] minimun branch length to collapse internal or terminal branch [Default: 0.000001]')
+tlike.add_argument('-s','--collapse_bysupp',
+                    action="store_true",
+                    help='''[Optional] If selected, collapse internal branches by support value''')
+tlike.add_argument('-S', '--min_supp',
+                    metavar = "",
+                    type    = float,
+                    default = 0,
+                    help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
 tlike.add_argument('-o','--outfile',
                     metavar="",
                     type= str,
@@ -296,7 +326,7 @@ tlike.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
                     default = 1,
-                    help    = '[Optional] number of cpus [Default: 1]')    
+                    help    = '[Optional] number of cpus [Default: 1]')
 
 def main():
 
@@ -341,11 +371,13 @@ def main():
     elif wholeargs.subcommand == "tlike":
         
         TreeExplore(
-            treefiles     = wholeargs.treefiles,
-            schema        = wholeargs.schema,
-            collpasebylen = wholeargs.no_collapse, # default: true
-            minlen        = wholeargs.min_len,
-            threads       = wholeargs.threads
+            treefiles      = wholeargs.treefiles,
+            schema         = wholeargs.format,
+            collpasebylen  = wholeargs.collapse_bylen, # default: false
+            minlen         = wholeargs.min_len,
+            collpasebysupp = wholeargs.collapse_bysupp, # default: false
+            minsupp        = wholeargs.min_supp,
+            threads        = wholeargs.threads
         ).find_Tlikes()
 
     # elif wholeargs.subcommand == "raxmltree":
