@@ -278,24 +278,38 @@ Example:
 
     * Standar usage:
 
-        $ fishlifeqc tlike [tree files]
+        $ fishlifeqc tlike [tree files] -t [taxonomy file]
+
+            The taxnomy file is CSV-formated and must contain the following:
+
+                names         spps
+                [tip name 1],[species name of tip name 1]
+                [tip name 2],[species name of tip name 2]
+                [tip name 3],[species name of tip name 3]
+                ...          ...                            
 
     * Collapse internal branches by branch length:
 
-        $ fishlifeqc tlike [tree files] -l
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -l
 
     * Collapse internal branches by support value:
 
-        $ fishlifeqc tlike [tree files] -s
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -s
 
     * Collapse internal branches by either support value and branch lengths:
 
-        $ fishlifeqc tlike [tree files] -l -s
-
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -l -s
 """)
 tlike.add_argument('treefiles',
                     nargs="+",
+                    type=str,
                     help='Filenames')
+tlike.add_argument('-t','--taxonomy',
+                    metavar  = "b", # terrible argparse bug right here
+                    required = True,
+                    type     = str,
+                    default  = None,
+                    help     = 'Taxonomy file')
 tlike.add_argument('-f','--format',
                     metavar="",
                     type= str,
@@ -328,9 +342,11 @@ tlike.add_argument('-n', '--threads',
                     default = 1,
                     help    = '[Optional] number of cpus [Default: 1]')
 
+
 def main():
 
     wholeargs = parser.parse_args()
+
     if wholeargs.subcommand == "mdata":
         # print(wholeargs)
         Missingdata(
@@ -369,9 +385,11 @@ def main():
         ).id_engine()
 
     elif wholeargs.subcommand == "tlike":
+        # print(wholeargs)
         
         TreeExplore(
             treefiles      = wholeargs.treefiles,
+            taxnomyfile    = wholeargs.taxonomy,
             schema         = wholeargs.format,
             collpasebylen  = wholeargs.collapse_bylen, # default: false
             minlen         = wholeargs.min_len,
