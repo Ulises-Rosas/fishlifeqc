@@ -27,7 +27,7 @@ class TreeExplore:
                 treefiles = None, 
                 schema = 'newick',
                 collpasebylen = True,
-                minlen = 0,
+                minlen = 0.000001,
                 collpasebysupp = True,
                 minsupp = 0,
                 outfilename = 't_like.csv',
@@ -79,6 +79,38 @@ class TreeExplore:
             exit()
 
         return { on[0]:on[1] for on in myrows  }
+
+    @property
+    def _t_like_taxa(self):
+
+        if not self.taxonomyfile:
+            return None
+
+        myrows = []
+        with open(self.taxonomyfile, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                myrows.append(row)
+
+        df = {}
+        duplications = []
+        for row in myrows:
+            spps = row[0]
+
+            if df.__contains__(spps):
+                duplications.append(spps)
+
+            df[spps] = { n:v  for n,v in enumerate(row[1:])}
+
+        if duplications:
+            sys.stderr.write('\nFollowing species names are repeated:\n\n')
+            sys.stderr.flush()
+            for d in duplications:
+                sys.stderr.write(' - %s\n' % d)
+                sys.stderr.flush()
+            exit()
+
+        return df
 
     def collapse(self, tree):
         """
@@ -137,9 +169,39 @@ class TreeExplore:
                     clades.append(t_clade)
         return clades
 
+    def _is_same_group(self,clade_name, group_indx = 0):
+        group = []
+
+        for i in clade_name:
+            tmp = self._t_like_taxa[i][group_indx]
+            if not tmp in group:
+                group.append(tmp)
+
+        return len(group) == 1
+
+    def _t_like_classifier(self, clade_names):
+        out = []
+
+        for i in clade_names:
+            if not self._is_same_group(i, group_indx = 0):
+                out.append(i)
+
+        return out
+
+    def _format_tlike(self, clade_names, bmfile):
+
+        if not clade_names:
+            return None
+
+        out = []
+        for i in clade_names:
+            out.append([ bmfile, ",".join(i) ])
+
+        return out
+
     def _find_Tlikes(self, file_tree):
 
-        # file_tree = "../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
+        # file_tree = "../CYTB.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
         # schema = 'newick'
 
         bmfile = os.path.basename( file_tree )
@@ -147,7 +209,8 @@ class TreeExplore:
         sys.stderr.write("Processing: %s\n" % bmfile)
         sys.stderr.flush()
 
-        tree   = dendropy.Tree.get( path = file_tree, schema = self.schema )
+        tree = dendropy.Tree.get( path = file_tree, 
+                                  schema = self.schema )
 
         if self.collapsebylen or self.collpasebysupp:
             self.collapse(tree)
@@ -163,25 +226,27 @@ class TreeExplore:
             """
             tmp = []            
             for k,v in nc.items():
-                # here v is on the 
-                # complete form of 
-                # the float
-                # print(k,v)
+                """
+                here v is on the complete 
+                form of  the float 
+                """
                 if v <= self.minlen:
                     tmp += [k]
 
             if len(tmp) > 1:
-                clade_name.append([
-                    bmfile, ",".join(tmp)
-                ])
+                clade_name.append(tmp)
+
+        f_clades = self._t_like_classifier(clade_name)
                 
-        return clade_name
+        return self._format_tlike(f_clades, bmfile)
 
     def find_Tlikes(self):
         """
         find T-like terminations 
         in a phylogenetic tree
         """
+        self._t_like_taxa
+
         with Pool(processes = self.threads) as p:
 
             preout = []
@@ -236,7 +301,12 @@ class TreeExplore:
             for file_tree in self.treefiles:
                 p.apply_async(self._rename_tips, (file_tree,)).get()
 
-# self = TreeExplore(taxnomyfile= "./../name_map.csv", treefiles=['./../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile'])
+# self = TreeExplore(
+#     taxnomyfile= "./../taxa_tlike.csv", 
+#     treefiles=['./../CYTB.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed']
+# )
+# self._t_like_taxa
+
 # def getOpts():
 
 #     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -305,7 +375,7 @@ class TreeExplore:
 #         taxnomyfile    = args.taxonomyfile,
 #         suffix         = args.suffix, 
 #         threads        = args.threads
-#     ).rename_tips()
+#     ).find_Tlikes()
 
 # if __name__ == "__main__":
 #     main()
