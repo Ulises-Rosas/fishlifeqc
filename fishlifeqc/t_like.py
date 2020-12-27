@@ -24,16 +24,17 @@ class TreeExplore:
     tree manipulator
     """
     def __init__(self, 
-                treefiles = None, 
-                schema = 'newick',
-                collpasebylen = True,
-                minlen = 0.000001,
-                collpasebysupp = True,
-                minsupp = 0,
-                outfilename = 't_like.csv',
-                taxnomyfile = None,
-                suffix = '_fishlife',
-                threads = 1):
+                 treefiles = None, 
+                 schema = 'newick',
+                 collpasebylen = False,
+                 minlen = 0.000001,
+                 collpasebysupp = True,
+                 minsupp = 0,
+                 outfilename = 't_like.csv',
+                 taxnomyfile = None,
+                 outgroup = None,
+                 suffix = '_fishlife',
+                 threads = 1):
         """
         initial params
         """
@@ -49,6 +50,7 @@ class TreeExplore:
         self.threads = threads
 
         self.taxonomyfile = taxnomyfile
+        self.outgroup = outgroup
         self.suffix = suffix
 
     @property
@@ -90,7 +92,8 @@ class TreeExplore:
         with open(self.taxonomyfile, 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                myrows.append(row)
+                if not row[0].startswith("#"):
+                    myrows.append(row)
 
         df = {}
         duplications = []
@@ -112,12 +115,42 @@ class TreeExplore:
 
         return df
 
+    @property
+    def _outgroup(self):
+
+        if not self.outgroup:
+            sys.stderr.write("fishlifeqc t_like: error: the following arguments are required: -g/--outgroup\n")
+            sys.stderr.flush()
+            exit()
+
+        myrows = []
+        with open(self.outgroup, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if not row[0].startswith("#"):
+                    if len(row) == 1:
+                        myrows.append(["0"] + row)
+                    else:
+                        myrows.append(row)
+        df = {}
+        for row in myrows:
+            priority = row[0]
+
+            if not df.__contains__(priority):
+                df[priority] = [row[1]]
+            else:
+                if not row[1] in df[priority]:
+                    df[priority] += [row[1]]
+        return df
+
     def collapse(self, tree):
         """
         collapse internal branch length
         by using a both branch lengths and
         support values
         """
+        # self.collpasebysupp  = True
+        # self.collapsebylen = False
 
         # , bylen, minlen, bysupp, minsupp,
         minsupp = self.minsupp
@@ -133,13 +166,15 @@ class TreeExplore:
                 continue
 
             if ed.is_internal():
-
+                # if ed.head_node.label is None:
+                #     black_box(ed.head_node)
                 if isboth:
-                    if ed.head_node.label is None:
-                        continue
-
-                    if float(ed.head_node.label) <= minsupp and ed.length <= minlen:
-                        ed.collapse()
+                    if ed.length <= minlen:
+                        if ed.head_node.label is None:
+                            ed.collapse()
+                            # continue
+                        elif float(ed.head_node.label) <= minsupp:
+                            ed.collapse()
 
                 elif islen:
                     if ed.length <= minlen:
@@ -147,9 +182,9 @@ class TreeExplore:
 
                 elif issupp:
                     if ed.head_node.label is None:
-                        continue
-
-                    if float(ed.head_node.label) <= minsupp:
+                        ed.collapse()
+                        # continue
+                    elif float(ed.head_node.label) <= minsupp:
                         ed.collapse()
 
     def terminal_clades(self, tree):
@@ -177,11 +212,15 @@ class TreeExplore:
             if not tmp in group:
                 group.append(tmp)
 
-        return len(group) == 1
-
-    def _t_like_classifier(self, clade_names):
+        if len(group) == 1:
+            return False if '' in group else True
+        
+        else:
+            return False
+        
+    def _t_no_samespps(self, clade_names):
         out = []
-
+        # filter same species
         for i in clade_names:
             if not self._is_same_group(i, group_indx = 0):
                 out.append(i)
@@ -193,28 +232,381 @@ class TreeExplore:
         if not clade_names:
             return None
 
+        # clade_names = out
         out = []
-        for i in clade_names:
-            out.append([ bmfile, ",".join(i) ])
+        for original,end,p_tax,reason in clade_names:
+            # original,end,reason = clade_names[1]
+            p_tax = [] if not p_tax else p_tax
+            to_eliminate = set(original) - set(end)
+            out.append([
+                 bmfile,
+                ",".join(original),
+                ",".join(p_tax),
+                ",".join(to_eliminate),
+                reason 
+            ])
 
         return out
 
-    def _find_Tlikes(self, file_tree):
+    def _look_tax(self, other_taxa, t_clade, tax_map, same_node = False):
+        """
+        returns those
+        taxa inside the
+        t-clade that match 
+        with mynode
+        """
+        # other_taxa, t_clade, tax_map = rest_tree, t_clade, tax_map
+        # mynode = [t_clade_node]
+        if not other_taxa:
+            return None
 
-        # file_tree = "../CYTB.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
+        if same_node:
+            other_taxa = set(other_taxa) - set(t_clade)
+            if not other_taxa:
+                return None
+
+        matched_tclade  = []
+        # matched_othertax = {}
+        for t in t_clade:
+            tg = tax_map[t]
+            # getting a list can help
+            # to estimate frequencies
+            # in future versions
+            tmp = [] 
+            for o in other_taxa:
+                og = tax_map[o]
+                if tg == og:
+                    tmp.append(o)
+                    break
+
+            if tmp:
+                matched_tclade.append(t)
+
+        return matched_tclade
+
+    def _filter_PD(self, df, t_int_clade, t_clade):
+        """
+        filter Patristic distances by
+        eliminating distances from the same
+        t_clade and seperating
+        between sister clades
+        and internal clades (inside the t_clade)
+
+        Returns
+        -------
+        /tuple/
+        (in_nn, out_nn)
+        """
+        nearests_in = {}
+        nearests_out = {}
+        # since keys inside
+        # each dictionary are the same,
+        # we just take one dictionary key
+        # in order to obtain a variable (`tmp_set`)
+        # with the precise keys we target on
+        if not isinstance( t_clade, list):
+            t_clade = list(t_clade)
+
+        tc = t_clade[0] # but is it the closer
+                        # to the node?
+
+        tmp_set = set(df[tc]) - set(t_clade)
+
+        if t_int_clade:
+            tmp_set -= set(t_int_clade)
+
+            in_tmp = {}
+            for tic in t_int_clade:
+                in_tmp[tic] = df[tc][tic]
+
+            nearests_in[tc] = in_tmp
+
+        out_tmp = {}
+        for toc in tmp_set:
+            out_tmp[toc] = df[tc][toc]
+
+        nearests_out[tc] = out_tmp
+
+        out_min = min(nearests_out[tc].values())
+        out_nn  = [k for k,v in nearests_out[tc].items() if v == out_min]
+
+        if not nearests_in:
+            return (None, out_nn)
+
+        in_min = min(nearests_in[tc].values())
+        in_nn  = [k for k,v in nearests_in[tc].items() if v == in_min]
+
+        return (in_nn, out_nn)
+
+    def _NearestNeighborsGroups(self, tree, t_clade, t_clade_node, tax_map):
+        '''
+        get nearest neighbors groups
+        '''
+        t_int_clade = []
+        # t_clade     = []
+        for cn in t_clade_node._child_nodes:
+            # a monotipic lineage is a leaf
+            if  cn.is_leaf():
+                # this leaf is 
+                # larger than 
+                # self.minlen
+                my_leaf = cn.taxon.label
+                if not my_leaf in t_clade:
+                    t_int_clade.append(my_leaf)
+            else:
+                for tic in cn.leaf_iter():
+                    t_int_clade.append(tic.taxon.label)
+
+        neighbor = [i.taxon for i in t_clade_node.parent_node.leaf_iter()]
+        newtree  = tree.extract_tree_with_taxa(taxa = neighbor)
+        df = newtree.phylogenetic_distance_matrix().as_data_table()._data
+
+        in_nn, out_nn = self._filter_PD(df, t_int_clade, t_clade)
+        out_g = set([tax_map[i] for i in out_nn])
+
+        if not in_nn:
+            (None, out_g)
+
+        in_g = set([tax_map[i] for i in in_nn])
+        return (in_g, out_g)
+
+    def _t_drop_prop(self, clade, tax_map, prop = 0.5, todrop = None):
+        """
+        drop taxa and select taxa by the majority of 
+        their groups
+
+        returns: an iterable or None
+        """
+        # clade = t_clade
+        # todrop = ['C1']
+        # clade = list(tax_map)
+        if todrop:
+            clade = set(clade) - set(todrop)
+            if not clade:
+                return []
+
+        check_prop = lambda kv: kv[0] if (kv[1]/len(clade)) >= prop else None
+
+        groups       = collections.Counter([tax_map[i] for i in clade])
+        larger_group = list(filter(None, map(check_prop, groups.items())))
+
+        if larger_group:
+            return [i for i in clade if tax_map[i] in larger_group]
+        else:
+            return clade
+
+    def _t_find_stem(self, t_clade):
+        # t_clade = [
+        #     'Argentiniformes_Argentinidae_Argentina_sp_38',
+        #     'Argentiniformes_Argentinidae_Argentina_sp_37'
+        # ]
+        tax_r  = sorted( list( self._t_like_taxa[t_clade[0]] ), reverse=True)
+
+        stem_r = []
+        for tr in tax_r:
+            tmp_range = [self._t_like_taxa[i][tr] for i in t_clade]
+            uniq_g = set(tmp_range)
+            if len(uniq_g) == 1:
+                if uniq_g.pop() != "":
+                    stem_r.append(tr)
+                else:
+                    break
+            else:
+                break
+
+        if not stem_r:
+            # use the maximum range
+            # possible
+            stem_r = [tax_r[0]]
+
+        tax_map = {}
+        for k,tax_ranks in self._t_like_taxa.items():
+            tmp_range = [tax_ranks[sr] for sr in stem_r]
+            tax_map[k] = "-".join(tmp_range)
+
+        return ("-".join(map(str,stem_r)) ,tax_map )
+
+    def _t_reason(self, p_tax, reason):
+
+        if p_tax:
+            return reason + ". P_tax: %s" % ','.join(set(p_tax))
+        else:
+            return reason
+
+    def _t_other_tax(self, node, counter):
+
+        other_taxa = []
+
+        if not node:
+            return other_taxa
+        # counter = list(filter(None, counter))
+        # other_taxa = []
+
+        for l in node.leaf_nodes():
+            tmp_label = l.taxon.label
+            if not tmp_label in counter:
+                other_taxa.append(tmp_label)
+
+        return other_taxa
+
+    def _t_is_mono(self):
+        pass
+
+    def _t_selection(self, tree, t_clade):
+        # monotipic lineage
+        # str_tree = '((((A1:1,A2:1):1,\
+        # (B1:1,B2:1):2):3,(C1:0,C2:0,D1:2)\
+        # :6):2,(CC1:1,F:3):4);'
+        # t_clade = f_clades[1]
+        original = t_clade
+        level,tax_map  = self._t_find_stem(t_clade)
+
+        t_clade_node = tree.mrca(taxon_labels=t_clade)
+
+        t_int_tax = self._t_other_tax(t_clade_node, t_clade)
+        t_out_tax = self._t_other_tax(t_clade_node._parent_node, t_clade + t_int_tax)
+        rest_tree = self._t_other_tax(tree, t_out_tax + t_clade + t_int_tax)
+
+        P_tax = self._look_tax(rest_tree, t_clade, tax_map)
+
+        if P_tax:
+            t_clade = set(t_clade) - set(P_tax)
+            if not t_clade:
+                reason = "elimination of P taxa at %s group" % level
+                return (original, t_clade, P_tax, reason)
+
+        So_tax = self._look_tax(
+                        t_out_tax,
+                        t_clade,
+                        tax_map
+                    )
+        Si_tax = self._look_tax(
+                    t_int_tax, 
+                    t_clade,
+                    tax_map
+                )
+
+        if not So_tax and not Si_tax:
+            reason =  "no shared group (%s) with any sister node" % level
+            return (original, t_clade, P_tax, reason)
+
+        elif not So_tax and Si_tax:
+            tax    = self._t_drop_prop(t_clade, tax_map, prop = 0.5, todrop=None)
+
+            reason = "no shared group (%s) with outside sister taxa" % level
+
+            if 0 < len(tax) < len(t_clade):
+                reason += ". Less frequent at shared group level"
+
+            return (original, tax, P_tax, reason)
+
+        elif So_tax and not Si_tax:
+            tax    = self._t_drop_prop(t_clade, tax_map, prop = 0.5, todrop=So_tax)
+
+            reason = "shared group (%s) with outside sister taxa" % level
+
+            if len(So_tax) < len(tax) < len(t_clade):
+                reason +=". Less frequent at shared group level"
+
+            return (original, tax, P_tax, reason)
+
+        elif So_tax and Si_tax:
+            # neighbor analyses
+            in_nn_g, out_nn_g = self._NearestNeighborsGroups(tree, t_clade, t_clade_node, tax_map)
+            intersection      = set(in_nn_g) & set(out_nn_g)
+
+            if intersection:
+                matched = []
+                for tc in t_clade:
+                    if tax_map[tc] in intersection:
+                        matched.append(tc)
+
+                reason0 = "match with NN groups intersection: '%s'" % ','.join(intersection)
+                reason  = reason0 if matched else 'any ' + reason0
+                tax     = matched if matched else []
+
+                return (original, tax, P_tax, reason)
+
+            else:
+                o_matched = []
+                i_matched = []
+
+                for tc in t_clade:
+                    tmp_g = tax_map[tc]
+
+                    if tmp_g in out_nn_g:
+                        o_matched.append(tc)
+
+                    if tmp_g in in_nn_g:
+                        i_matched.append(tc)
+
+                if o_matched and i_matched:
+                    tax    = o_matched + i_matched
+                    reason = "match with both NN group"
+                    return (original, tax, P_tax, reason)
+
+                # elif o_matched and not i_matched:
+                #     pass
+
+                # elif not o_matched and i_matched:
+                #     pass
+
+                # elif not o_matched and not i_matched:
+                #     pass
+
+                else:
+                    tax = self._t_drop_prop(t_clade, tax_map, prop = 0.5, todrop=So_tax)
+                    reason = "shared group (%s) with sister nodes but both were not NN" % level
+
+                    if len(So_tax) < len(tax) < len(t_clade):
+                        reason +=". Less frequent at shared group level"
+
+                    return (original, tax, P_tax, reason)
+
+    def _rooting(self, tree):
+
+        all_taxa = [i.taxon.label for i in tree if i.is_leaf()]
+        prio_ranges = sorted(map(int, self._outgroup.keys()))
+
+        specific_root = []
+        for pr in prio_ranges:
+            tmp_range = str(pr)
+            tmp_group = self._outgroup[tmp_range]
+            tmp_match = [o for o in tmp_group if o in all_taxa]
+            if tmp_match:
+                specific_root.extend(tmp_match)
+                break
+
+        if specific_root:
+            root_mrca = tree.mrca(taxon_labels=specific_root)
+            tree.reroot_at_node(root_mrca, update_bipartitions=True)
+
+    def _find_Tlikes(self, file_tree):
+        # file_tree = "../E0165.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
+        # file_tree = "../E0004.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
         # schema = 'newick'
+        # file_tree = self.treefiles[0]
 
         bmfile = os.path.basename( file_tree )
 
-        sys.stderr.write("Processing: %s\n" % bmfile)
-        sys.stderr.flush()
+        sys.stdout.write("Processing: %s\n" % bmfile)
+        sys.stdout.flush()
 
-        tree = dendropy.Tree.get( path = file_tree, 
-                                  schema = self.schema )
+        try:
+            tree = dendropy.Tree.get(
+                        path   = file_tree, 
+                        schema = self.schema 
+                    )
+        except dendropy.dataio.newickreader.NewickReader.NewickReaderMalformedStatementError:
+            sys.stderr.write("Error reading: %s\n" % bmfile)
+            sys.stderr.flush()
+            return None
 
         if self.collapsebylen or self.collpasebysupp:
             self.collapse(tree)
 
+        self._rooting(tree)
+        # print(tree.as_ascii_plot(plot_metric = 'length') )
         newclades = self.terminal_clades(tree)
 
         clade_name = []
@@ -236,9 +628,15 @@ class TreeExplore:
             if len(tmp) > 1:
                 clade_name.append(tmp)
 
-        f_clades = self._t_like_classifier(clade_name)
-                
-        return self._format_tlike(f_clades, bmfile)
+        f_clades = self._t_no_samespps(clade_name)
+
+        out = []
+        if f_clades:
+            for i in f_clades:
+                # print(i)
+                out.append(self._t_selection(tree, i))
+
+        return self._format_tlike(out, bmfile)
 
     def find_Tlikes(self):
         """
@@ -246,16 +644,19 @@ class TreeExplore:
         in a phylogenetic tree
         """
         self._t_like_taxa
+        self._outgroup
+        # print(self._outgroup)
 
         with Pool(processes = self.threads) as p:
 
             preout = []
-            
             for file_tree in self.treefiles:
+                # result = self._find_Tlikes(file_tree)
                 result = p.apply_async(self._find_Tlikes, (file_tree,))
                 preout.append(result)
 
-            out = [ ['file', 'clade'] ]
+            out = [ ['file','original','P_tax','delete_suggestion','reason'] ]
+            # print(preout)
             for p in preout:
                 if p.get():
                     out.extend( p.get() )
@@ -303,8 +704,10 @@ class TreeExplore:
 
 # self = TreeExplore(
 #     taxnomyfile= "./../taxa_tlike.csv", 
-#     treefiles=['./../CYTB.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed']
+#     outgroup= "./../taxa_outgroup.txt",
+#     treefiles=['./../E0025.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed']
 # )
+
 # self._t_like_taxa
 
 # def getOpts():
@@ -332,7 +735,7 @@ class TreeExplore:
 #                         default = 0.000001,
 #                         help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
 #     parser.add_argument('-s','--collapse_bysupp',
-#                         action="store_true",
+#                         action="store_false",
 #                         help='''[Optional] If selected, collapse internal branches by support value''')
 #     parser.add_argument('-S', '--min_supp',
 #                         metavar = "",
@@ -344,11 +747,6 @@ class TreeExplore:
 #                         type= str,
 #                         default= "t_like.csv",
 #                         help='[Optional] Out filename [Default: t_like.csv]')
-#     parser.add_argument('-t','--taxonomyfile',
-#                         metavar="",
-#                         type= str,
-#                         default= None,
-#                         help='[Optional] Taxonomy file [Default: None]') 
 #     parser.add_argument('-a','--suffix',
 #                         metavar="",
 #                         type= str,
@@ -359,6 +757,16 @@ class TreeExplore:
 #                         type    = int,
 #                         default = 1,
 #                         help    = '[Optional] number of cpus [Default: 1]')          
+#     parser.add_argument('-g','--outgroup',
+#                         metavar="",
+#                         type= str,
+#                         help='[Optional] Outgroup taxa [Default: None]')
+#     parser.add_argument('-t','--taxonomyfile',
+#                         metavar="",
+#                         type= str,
+#                         required= True,
+#                         help='[Optional] Taxonomy file [Default: None]') 
+
 #     args = parser.parse_args()
 #     return args
 
@@ -373,6 +781,7 @@ class TreeExplore:
 #         collpasebysupp = args.collapse_bysupp, # default: false
 #         minsupp        = args.min_supp,
 #         taxnomyfile    = args.taxonomyfile,
+#         outgroup       = args.outgroup,
 #         suffix         = args.suffix, 
 #         threads        = args.threads
 #     ).find_Tlikes()
@@ -380,3 +789,11 @@ class TreeExplore:
 # if __name__ == "__main__":
 #     main()
 
+
+# a = "Salmoniformes_Salmonidae_Oncorhynchus_keta_GCF_012931545.1,Salmoniformes_Salmonidae_Salmo_ischchan_14,Salmoniformes_Salmonidae_Brachymystax_lenok_17,Salmoniformes_Salmonidae_Salmo_trutta_GCF_901001165.1,Salmoniformes_Salmonidae_Salvelinus_fontinalis_5,Salmoniformes_Salmonidae_Salmo_marmoratus_15,Salmoniformes_Salmonidae_Salvelinus_sp_GCF_002910315.2,Salmoniformes_Salmonidae_Oncorhynchus_nerka_GCF_006149115.1,Salmoniformes_Salmonidae_Hucho_hucho_GCA_003317085.1,Salmoniformes_Salmonidae_Hucho_taimen_18"
+# import collections
+# stem_group = []
+# for i in a.split(","):
+#     stem_group.append("_".join(i.split("_")[0:3]))
+
+# collections.Counter(stem_group)
