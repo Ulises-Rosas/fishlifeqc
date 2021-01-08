@@ -7,8 +7,6 @@ import collections
 import argparse
 import dendropy
 from multiprocessing import Pool
-import copy
-
 
 # import inspect
 # import pprint
@@ -414,30 +412,6 @@ class TreeExplore:
 
             return (to_report, p_tax)
 
-    # def _look_tax(self, other_taxa, t_clade, tax_map):
-    #     """
-    #     returns those
-    #     taxa inside the
-    #     t-clade that match 
-    #     with mynode
-    #     """
-    #     # other_taxa, t_clade, tax_map = t_int_tax, t_clade,  tax_map 
-    #     # mynode = [t_clade_node]
-    #     _, iclade = self.__t_groups__(
-    #                         other_taxa,
-    #                         t_clade   ,
-    #                         tax_map   
-    #                     )
-
-    #     out = []
-    #     if not iclade:
-    #         return out
-
-    #     for i in iclade.values():
-    #         out.extend(i)
-
-    #     return out
-
     def _filter_PD(self, df, t_int_clade, t_clade):
         """
         filter Patristic distances by
@@ -539,6 +513,9 @@ class TreeExplore:
             if not clade:
                 return clade
 
+        if prop == 1:
+            return clade
+
         check_prop = lambda kv: kv[0] if (kv[1]/len(clade)) >= prop else None
 
         groups       = collections.Counter([tax_map[i] for i in clade])
@@ -638,39 +615,15 @@ class TreeExplore:
         if P_tax:
             reason += ' after eliminating P_tax'
 
+        if P_other:
+            reason += '. P taxa beyond sister nodes not considered'
+
         return (True, reason, P_other)        
 
     def _t_selection(self, tree, t_clade):
-        # monotipic lineage
-        # str_tree = '[&R] (((((A1:1,A2:1):1,(B1:1,B2:1):2):3,(C1:0,C2:0,D1:2,D2:2):6):2,(CC1:1,F:3):4):4,O:1);'
-        # str_tree = '(((((A1:1,A2:1):1,(B1:1,B2:1):2):3,(C1:0,C2:0,D4:1,((D2:1,D3:1):2,D1:2):1):6):2,(CC1:1,F:3):4):4,O:1);'
-        # str_tree = '(((((A1:1,A2:1):1,(B1:1,B2:1):2):3,(C1:0,C2:0,D1:2,D2:2):6):2,CC1:1):4,O:1);'
-        # tree = dendropy.Tree.get_from_string(str_tree, 'newick')
-        # print( tree.as_ascii_plot(plot_metric = 'length') )
-        # root = ['F', 'CC1']
-        # root = ['O']
-        # root_mrca = tree.mrca(taxon_labels=root)
-        # tree.reroot_at_edge(root_mrca.edge, update_bipartitions=False, suppress_unifurcations= False)
-        # t_clade = ['C1', 'C2']
-        # t_clade = f_clades[0]
+
         original       = t_clade
         level,tax_map  = self._t_find_stem(t_clade)
-        # level = 'sdfsd-sdfasd'
-        # tax_map = {
-        #     'A1'  : 'A',
-        #     'A2'  : 'A',
-        #     'B1'  : 'B',
-        #     'B2'  : 'B',
-        #     'C1'  : 'C',
-        #     'C2'  : 'C',
-        #     'D1'  : 'D',
-        #     'D2'  : 'C',
-        #     'D3'  : 'C',
-        #     'D4'  : 'C',
-        #     'CC1' : 'C',
-        #     'F'   : 'F',
-        #     'O'   : 'O'
-        # }
 
         is_t_mono    = len(set([tax_map[i] for i in t_clade])) == 1
         t_clade_node = tree.mrca(taxon_labels=t_clade)
@@ -796,11 +749,11 @@ class TreeExplore:
                     return (original, tax, P_tax, P_other, reason)
 
                 else:
-                    tax = self._t_drop_prop(t_clade, tax_map, prop = 0.5, todrop=So_tax)
+                    tax = self._t_drop_prop(t_clade, tax_map, prop = 1, todrop=So_tax)
                     reason = "shared group (%s) with sister nodes but both were not NN" % level
 
-                    if len(So_tax) < len(tax) < len(t_clade):
-                        reason +=". Less frequent at shared group level"
+                    # if len(So_tax) < len(tax) < len(t_clade):
+                    #     reason +=". Less frequent at shared group level"
 
                     return (original, tax, P_tax, P_other, reason)
 
@@ -840,7 +793,6 @@ class TreeExplore:
                 tree.reroot_at_node(root_mrca,
                                     update_bipartitions=True, 
                                     suppress_unifurcations= False)
-
 
     def _find_Tlikes(self, file_tree):
         # file_tree = "../E0165.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"

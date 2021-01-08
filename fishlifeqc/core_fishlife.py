@@ -278,38 +278,51 @@ Example:
 
     * Standar usage:
 
-        $ fishlifeqc tlike [tree files] -t [taxonomy file]
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file]
 
-            The taxnomy file is CSV-formated and must contain the following:
+            Both taxnomy file is CSV-formated and must contain the following
+            struncture:
 
-                names         spps
-                [tip name 1],[species name of tip name 1]
-                [tip name 2],[species name of tip name 2]
-                [tip name 3],[species name of tip name 3]
-                ...          ...                            
+                # names       group 0                 group 1                 ... 
+                [tip name 1],[group 0 of tip name 1],[group 1 of tip name 1], ...
+                [tip name 2],[group 0 of tip name 2],[group 1 of tip name 2], ...
+                [tip name 3],[group 0 of tip name 3],[group 1 of tip name 3], ...
+                ...          ...                    ,...                  , ...
 
-    * Collapse internal branches by branch length:
+            Where group 0 can represent species names, group 1 genus, etc.
+            NA values are empty spaces. 
 
-        $ fishlifeqc tlike [tree files] -t [taxonomy file] -l
+            Outgroup file is simple list with tip names in one column. 
+            However, it can also contain a priorities in outgroups using two
+            columns:
 
-    * Collapse internal branches by support value:
+                 # priority, names
+                 0,[tip name 1]
+                 0,[tip name 2]
+                 1,[tip name 3]
+                 1,[tip name 4]
+                 ...
 
-        $ fishlifeqc tlike [tree files] -t [taxonomy file] -s
+            Where the first column represent group priority to outgroup gene trees.
+            The lesser this number, higher the priority to choose those tip names
+            for rooting gene trees. For example, if any tip of priority '0' is found
+            at a gene tree, it is chosen tips of priority '1' to root the gene tree.
 
     * Collapse internal branches by either support value and branch lengths:
 
-        $ fishlifeqc tlike [tree files] -t [taxonomy file] -l -s
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file] -l -s
 """)
 tlike.add_argument('treefiles',
                     nargs="+",
-                    type=str,
                     help='Filenames')
-tlike.add_argument('-t','--taxonomy',
-                    metavar  = "b", # terrible argparse bug right here
-                    required = True,
-                    type     = str,
-                    default  = None,
-                    help     = 'Taxonomy file')
+tlike.add_argument('-t','--taxonomyfile',
+                    metavar="",
+                    type= str,
+                    help='Taxonomy file [Default: None]') 
+tlike.add_argument('-g','--outgroup',
+                    metavar="",
+                    type= str,
+                    help='Outgroup taxa [Default: None]')
 tlike.add_argument('-f','--format',
                     metavar="",
                     type= str,
@@ -322,9 +335,9 @@ tlike.add_argument('-L', '--min_len',
                     metavar = "",
                     type    = float,
                     default = 0.000001,
-                    help    = '[Optional] minimun branch length to collapse internal or terminal branch [Default: 0.000001]')
+                    help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
 tlike.add_argument('-s','--collapse_bysupp',
-                    action="store_true",
+                    action="store_false",
                     help='''[Optional] If selected, collapse internal branches by support value''')
 tlike.add_argument('-S', '--min_supp',
                     metavar = "",
@@ -336,11 +349,16 @@ tlike.add_argument('-o','--outfile',
                     type= str,
                     default= "t_like.csv",
                     help='[Optional] Out filename [Default: t_like.csv]')
+tlike.add_argument('-a','--suffix',
+                    metavar="",
+                    type= str,
+                    default= "_fishlife",
+                    help='[Optional] Append a suffix at output files [Default: _fishlife]')         
 tlike.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
                     default = 1,
-                    help    = '[Optional] number of cpus [Default: 1]')
+                    help    = '[Optional] number of cpus [Default: 1]')   
 
 
 def main():
@@ -389,13 +407,16 @@ def main():
         
         TreeExplore(
             treefiles      = wholeargs.treefiles,
-            taxnomyfile    = wholeargs.taxonomy,
             schema         = wholeargs.format,
             collpasebylen  = wholeargs.collapse_bylen, # default: false
             minlen         = wholeargs.min_len,
             collpasebysupp = wholeargs.collapse_bysupp, # default: false
             minsupp        = wholeargs.min_supp,
-            threads        = wholeargs.threads
+            taxnomyfile    = wholeargs.taxonomyfile,
+            outgroup       = wholeargs.outgroup,
+            suffix         = wholeargs.suffix, 
+            threads        = wholeargs.threads,
+            outfilename    = wholeargs.outfile
         ).find_Tlikes()
 
     # elif wholeargs.subcommand == "raxmltree":
