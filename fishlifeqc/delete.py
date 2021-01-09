@@ -1,4 +1,6 @@
 import os
+import sys
+import csv
 from multiprocessing import Pool
 from fishlifeqc.utils import fas_to_dic
 
@@ -13,11 +15,31 @@ class Deletion:
         self.sequences   = sequences
         self.controlfile = controlfile
         self.filetype    = filetype
-        self.suffix      = "_%sd" % filetype
+        self.suffix      = filetype
         self.threads     = threads
 
         # self.FAILEDFILE  = "failed_deletion.txt"
         self.customlist = []
+
+    @property
+    def _control_file(self):
+        df = {}
+        myrows = []
+
+        with open(self.controlfile, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                myrows.append(row)
+
+        for i in myrows:
+            exon = i[0]
+            header = i[1]
+            if not df.__contains__(exon):
+                df[exon] = [header]
+            else:
+                df[exon] += [header]
+
+        return df
 
     def readcontrolfile(self):
 
@@ -26,7 +48,12 @@ class Deletion:
             self.customlist = [i.strip() for i in open(self.controlfile, 'r').readlines()]
 
     def prot_headers(self, file):
-        # file = './../data/mock1.txt'
+
+        if not os.path.exists(file):
+            sys.stderr.write("\nFile '%s' does not exist\n" % file)
+            sys.stderr.flush()
+            return None
+
         aln  = fas_to_dic(file)
 
         with open( file + self.suffix, 'w') as f:
@@ -44,15 +71,25 @@ class Deletion:
 
             [*p.map(self.prot_headers, self.sequences)]
 
+    def _header_exon(self, seq):
+
+        self.customlist = self._control_file[seq]
+        self.prot_headers(seq)
+        
+    def header_exon(self):
+
+        with Pool(processes = self.threads) as p:
+            for seq in list(self._control_file):
+                p.apply_async( self._header_exon, (seq,) ).get()
 
 # Deletion(
 #     sequences   =  ['data/COI.NT_aligned.fasta_trimmed',
 #                     'data/E0537.NT_aligned.fasta_trimmed',
 #                     'data/E1718.NT_aligned.fasta_trimmed'],
-#     controlfile =   "data/mydellist.txt",
+#     controlfile =  "head_headers_per_exon.csv",
 #     filetype    = 'list',
 #     threads     =  2
-# ).headers()
+# ).header_exon()
 # """
 # Microstomatidae_Nansenia_ardesiaca_EPLATE_46_F04
 # Opisthoproctidae_Rhynchohyalus_natalensis_EPLATE_49_G08

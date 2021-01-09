@@ -677,7 +677,7 @@ class TreeExplore:
 
         if not So_tax and not Si_tax:
 
-            reason =  "T clade has no S taxa with any sister node at (%s) group" % level
+            reason =  "T clade has no S taxa with any sister node at %s group" % level
             if So_other:
                 reason += ". Outside sister P taxa not considered"
             if Si_other:
@@ -687,7 +687,7 @@ class TreeExplore:
 
         elif not So_tax and Si_tax:
 
-            reason = "T clade has only S taxa with internal sister nodes at (%s) group" % level
+            reason = "T clade has only S taxa with internal sister nodes at %s group" % level
 
             if So_other:                
                 reason += ". Outside sister P taxa not considered"
@@ -701,7 +701,7 @@ class TreeExplore:
 
         elif So_tax and not Si_tax:
 
-            reason = "T clade has only S taxa with outside sister nodes at (%s) group" % level
+            reason = "T clade has only S taxa with outside sister nodes at %s group" % level
 
             if Si_other:
                 reason += ". Internal sister P taxa not considered"
@@ -918,6 +918,9 @@ class TreeExplore:
         with Pool(processes = self.threads) as p:
             for file_tree in self.treefiles:
                 p.apply_async(self._rename_tips, (file_tree,)).get()
+
+
+# [i.taxon for i in tree.leaf_node_iter()]
 
 # self = TreeExplore(
 #     taxnomyfile= "./../taxa_tlike.csv", 
