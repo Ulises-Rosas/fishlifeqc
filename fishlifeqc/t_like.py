@@ -809,7 +809,8 @@ class TreeExplore:
         try:
             tree = dendropy.Tree.get(
                         path   = file_tree, 
-                        schema = self.schema 
+                        schema = self.schema,
+                        preserve_underscores = True
                     )
         except dendropy.dataio.newickreader.NewickReader.NewickReaderMalformedStatementError:
             sys.stderr.write("Error reading: %s\n" % bmfile)
