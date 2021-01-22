@@ -71,7 +71,8 @@ setup(name="fishlifeqc",
           './scripts/deleteheaders.py',
           './scripts/merge.py',
           './fishlifeqc/concatenate.py',
-          './scripts/codon_partition.py'
+          './scripts/codon_partition.py',
+          './scripts/cons_trees.py'
           ],
       classifiers=[
           'Programming Language :: Python :: 3'
