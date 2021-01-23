@@ -4,20 +4,21 @@ import os
 import sys
 import dendropy
 from multiprocessing import Pool
-from fishlifeqc.utils import fas_to_dic
-
+from fishlifeseq import headers
 
 class BLCorrelations:
     def __init__(self,
                 species_tree_file = None,
                 sequences = None,
                 suffix = '_constr.tree',
+                only_bl = False,
                 threads = 1
                 ):
         
         self.species_tree_file = species_tree_file
         self.sequences = sequences
         self.suffix = suffix
+        self.only_bl = only_bl
         
         self.threads = threads
 
@@ -49,7 +50,7 @@ class BLCorrelations:
 
     def _get_taxa(self, sequence):
         sym_c = lambda mystr: mystr.replace(">", "")
-        return list(map(sym_c,list(fas_to_dic(sequence))) )
+        return list(map(sym_c, headers(sequence)))
 
     def _prunning(self, sequence):
         """
@@ -78,18 +79,28 @@ class BLCorrelations:
                 schema = 'newick'
             )
 
-        out_name = sequence + self.suffix
+        out_wbl = sequence + "_bl" + self.suffix
+        out_nbl = sequence + "_nbl"+ self.suffix
         taxa     = self._get_taxa(sequence)
 
         tree.retain_taxa_with_labels( taxa )
 
         tree.write(
-            path = out_name,
+            path = out_wbl,
             schema = 'newick',
-            suppress_edge_lengths = True,
+            suppress_edge_lengths = False,
             suppress_internal_node_labels = True,
             unquoted_underscores = True
         )
+
+        if not self.only_bl:
+            tree.write(
+                path = out_nbl,
+                schema = 'newick',
+                suppress_edge_lengths = True,
+                suppress_internal_node_labels = True,
+                unquoted_underscores = True
+            )
 
     def get_constraints(self):
         """
@@ -102,5 +113,7 @@ class BLCorrelations:
 
 # sequence = ['/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/E0699.listd_allsets.NT_aligned.fasta_trimmed_renamed']
 # file_tree = "/Users/ulises/Desktop/GOL/software/fishlifeqc/prota_all_trimm_noT.ML_spp.tree"
-# self = BLCorrelations(species_tree_file=file_tree, sequences=sequence)
+# # headers(sequence[0])
+# self = BLCorrelations(species_tree_file=file_tree, sequences=sequence, suffix = '_constr.tree')
+# self.get_constraints()
 
