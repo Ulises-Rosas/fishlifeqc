@@ -52,8 +52,8 @@ def main():
         species_tree_file = args.tree_file,
         sequences = args.filenames,
         no_bl   = args.no_bl,
-        suffix    = args.suffix,
-        threads   = args.threads
+        suffix  = args.suffix,
+        threads = args.threads
     ).get_constraints()
     
 if __name__ == "__main__":
