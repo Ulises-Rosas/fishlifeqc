@@ -11,14 +11,14 @@ class BLCorrelations:
                 species_tree_file = None,
                 sequences = None,
                 suffix = '_constr.tree',
-                only_bl = False,
+                no_bl = False,
                 threads = 1
                 ):
         
         self.species_tree_file = species_tree_file
         self.sequences = sequences
         self.suffix = suffix
-        self.only_bl = only_bl
+        self.no_bl = no_bl
         
         self.threads = threads
 
@@ -79,28 +79,18 @@ class BLCorrelations:
                 schema = 'newick'
             )
 
-        out_wbl = sequence + "_bl" + self.suffix
-        out_nbl = sequence + "_nbl"+ self.suffix
+        out_name = sequence + self.suffix
         taxa     = self._get_taxa(sequence)
 
         tree.retain_taxa_with_labels( taxa )
 
         tree.write(
-            path = out_wbl,
+            path = out_name,
             schema = 'newick',
-            suppress_edge_lengths = False,
+            suppress_edge_lengths = self.no_bl,
             suppress_internal_node_labels = True,
             unquoted_underscores = True
         )
-
-        if not self.only_bl:
-            tree.write(
-                path = out_nbl,
-                schema = 'newick',
-                suppress_edge_lengths = True,
-                suppress_internal_node_labels = True,
-                unquoted_underscores = True
-            )
 
     def get_constraints(self):
         """
