@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-import sys
+# import sys
 import argparse
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata
 from fishlifeqc.boldsearch  import Boldesearch
 from fishlifeqc.t_like import TreeExplore
+from fishlifeqc.bl import BLCorrelations
 # from fishlifeqc.genetrees   import Raxml
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
@@ -361,6 +362,45 @@ tlike.add_argument('-n', '--threads',
                     help    = '[Optional] number of cpus [Default: 1]')   
 
 
+# bl ------------------------------------------------------
+
+bl = subparsers.add_parser('bl',
+                            help = "Branch length ratios and correlations",
+                            formatter_class = argparse.RawDescriptionHelpFormatter, 
+                            description="""
+
+
+                Branch length rations and person correlations
+
+Both metrics are obtained by comparing a constrained
+trees with the prunning of a reference tree
+
+Example:
+
+    * Standar usage:
+
+        $ fishlifeqc bl [tree files] -t [reference tree]
+""")
+
+bl.add_argument('treefiles',
+                nargs="+",
+                help='Filenames')
+bl.add_argument('-t','--reference',
+                metavar="",
+                type= str,
+                required= True,
+                help='Reference tree [Default: None]') 
+bl.add_argument('-p','--prefix',
+                metavar="",
+                type= str,
+                default= "BL_",
+                help='[Optional] Prefix for output files [Default: BL_]')
+bl.add_argument('-n', '--threads',
+                metavar = "",
+                type    = int,
+                default = 1,
+                help    = '[Optional] number of cpus [Default: 1]')
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -418,6 +458,15 @@ def main():
             threads        = wholeargs.threads,
             outfilename    = wholeargs.outfile
         ).find_Tlikes()
+
+    elif wholeargs.subcommand == 'bl':
+
+        BLCorrelations(
+            species_tree_file = wholeargs.reference,
+            cons_trees        = wholeargs.treefiles,
+            prefix            = wholeargs.prefix,
+            threads           = wholeargs.threads
+        ).BrLengths()
 
     # elif wholeargs.subcommand == "raxmltree":
     #     # print(wholeargs) 
