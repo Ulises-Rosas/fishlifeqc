@@ -43,7 +43,7 @@ ext_modules = [
 
 dependencies = [
                 "boldminer", # own package
-                'dendropy'
+                'dendropy==4.4.0'
                 ]
 
 with open('README.md') as readme_file:
