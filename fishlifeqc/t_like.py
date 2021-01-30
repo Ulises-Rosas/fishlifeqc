@@ -608,7 +608,7 @@ class TreeExplore:
             reason = 'T node is monophyletic at %s group' % level
         elif passed_nodes == 2:
             reason = 'T parent node is monophyletic at %s group' % level
-        elif passed_nodes > 2:
+        else:
             reason = 'T parent node and %s node(s) back are monophyletic at %s group' % (passed_nodes - 2, level)
             P_other = set(P_other) - set([i.taxon.label for i in source_node.leaf_iter()])
 
