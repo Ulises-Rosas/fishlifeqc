@@ -27,9 +27,9 @@ def getOpts():
                         type= str,
                         default= None,
                         help='Tree file [Default: None]')   
-    parser.add_argument('-b','--no_bl',
+    parser.add_argument('-b','--bl',
                         action="store_true",
-                        help='''[Optional] If selected, only constrained trees without branch lengths 
+                        help='''[Optional] If selected, only constrained trees with branch lengths 
                                 are generated''')
     parser.add_argument('-s', '--suffix',
                         metavar = "",
@@ -51,7 +51,7 @@ def main():
     BLCorrelations(
         species_tree_file = args.tree_file,
         sequences = args.filenames,
-        no_bl   = args.no_bl,
+        with_bl = args.bl,
         suffix  = args.suffix,
         threads = args.threads
     ).get_constraints()
