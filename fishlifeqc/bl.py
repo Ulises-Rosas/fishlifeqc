@@ -313,8 +313,8 @@ class BLCorrelations:
 
         if robfould:
             sys.stderr.write("Topologies do not match: %s\n" % bmfile)
-            sys.stdout.flush()
-            return None
+            sys.stderr.flush()
+            return (False, bmfile, None, None)
 
         ref_bls  = self.waiting_times(cp_spps_tree)
         cons_bls = self.waiting_times(_cons_tree)
@@ -323,22 +323,30 @@ class BLCorrelations:
         pearson = self.pearson_corr( bl_table )
         ratio   = self.root_ratios( cp_spps_tree, _cons_tree, threshold = self.ratio_threshold )
 
-        return (bmfile, ratio, pearson)
+        return (True, bmfile, ratio, pearson)
 
     def BrL_reduce(self, tables):
 
         ratio_table     = [["tree_name", "tip", "ratio"]]
         pearson_r_table = [["tree_name", "pearson_r"]]
+        diff_topo       = [['Tree_name']]
+
+        # diff_topo.append(['dfas'])
 
         for table in tables:
-            treen,ratio,pearson = table
+
+            match_topo,treen,ratio,pearson = table
+
+            if not match_topo:
+                diff_topo.append([treen])
+                continue
 
             if ratio:
                 for k,v in ratio.items():
-                    ratio_table += [[ treen, k, v ]]
+                    ratio_table.append([ treen, k, v ])
 
             if pearson:
-                pearson_r_table += [[ treen, pearson ]]
+                pearson_r_table.append([ treen, pearson ])
 
         if len(ratio_table) > 1:
             with open(self.prefix + "ratio.csv", 'w') as f:
@@ -350,6 +358,11 @@ class BLCorrelations:
                 writer = csv.writer(f)
                 writer.writerows(pearson_r_table)
 
+        if len(diff_topo) > 1:
+            with open(self.prefix + "fail_topology.csv", 'w') as f:
+                writer = csv.writer(f)
+                writer.writerows(diff_topo)
+
     def BrLengths(self):
 
         with Pool(processes = self.threads) as p:
@@ -360,7 +373,8 @@ class BLCorrelations:
                 result = p.apply_async(self._BL, (file_tree,))
                 preout.append(result)
 
-            self.BrL_reduce([i.get() for i in preout])
+            out = [i.get() for i in preout]
+            self.BrL_reduce(out)
 
 # _spps_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/prota_all_trimm_noT.ML_spp.tree"
 # _cons_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/ATP6_model_fixed.tree"
