@@ -25,17 +25,18 @@ fishlifeqc -h
 ```
 
 ```
-usage: fishlifeqc [-h] {mdata,rblast,bold,tlike} ...
+usage: fishlifeqc [-h] {mdata,rblast,bold,tlike,bl} ...
 
                                  Quality Control Steps
                                       
 
 positional arguments:
-  {mdata,rblast,bold,tlike}
+  {mdata,rblast,bold,tlike,bl}
     mdata               Trim sequences in function of gap ocurrences
     rblast              Reciprocal blastn comparing taxonomical groups
     bold                Match sequences against the BOLD database
     tlike               Find T-like clades in trees
+    bl                  Branch length ratios and correlations
 
 optional arguments:
   -h, --help            show this help message and exit
