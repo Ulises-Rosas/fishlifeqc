@@ -72,7 +72,8 @@ setup(name="fishlifeqc",
           './scripts/merge.py',
           './fishlifeqc/concatenate.py',
           './scripts/codon_partition.py',
-          './scripts/cons_trees.py'
+          './scripts/cons_trees.py',
+          './scripts/collapse.py'
           ],
       classifiers=[
           'Programming Language :: Python :: 3'

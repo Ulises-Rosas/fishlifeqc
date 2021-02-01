@@ -779,7 +779,7 @@ class TreeExplore:
 
                 if root_len:
                     tree.reroot_at_edge(root_mrca.edge, 
-                                        length1 = root_len, 
+                                        length1 = 0, 
                                         length2 = root_len, 
                                         update_bipartitions=True, 
                                         suppress_unifurcations= False)
