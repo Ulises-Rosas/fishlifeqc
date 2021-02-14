@@ -4,7 +4,7 @@ import os
 import sys
 import csv
 import collections
-import argparse
+# import argparse
 import dendropy
 from multiprocessing import Pool
 
@@ -119,9 +119,7 @@ class TreeExplore:
     def _outgroup(self):
 
         if not self.outgroup:
-            sys.stderr.write("fishlifeqc t_like: error: the following arguments are required: -g/--outgroup\n")
-            sys.stderr.flush()
-            exit()
+            return None
 
         myrows = []
         with open(self.outgroup, 'r') as f:
@@ -757,7 +755,11 @@ class TreeExplore:
 
                     return (original, tax, P_tax, P_other, reason)
 
-    def _rooting(self, tree):
+    def _specific_rooters(self, tree):
+        """
+        get specific rooters, if available,
+        from the gene tree
+        """
 
         all_taxa = [i.taxon.label for i in tree if i.is_leaf()]
         prio_ranges = sorted(map(int, self._outgroup.keys()))
@@ -771,33 +773,46 @@ class TreeExplore:
                 specific_root.extend(tmp_match)
                 break
 
-        if specific_root:
-            root_mrca = tree.mrca(taxon_labels=specific_root)
+        return specific_root
 
-            if len(specific_root) == 1:
-                root_len = root_mrca.edge.length
+    def _rooting(self, tree):
 
-                if root_len:
-                    tree.reroot_at_edge(root_mrca.edge, 
-                                        length1 = 0, 
-                                        length2 = root_len, 
-                                        update_bipartitions=True, 
-                                        suppress_unifurcations= False)
+        if not self._outgroup:
+            # print(tree.as_string(schema='newick'))
+            # print(tree.as_ascii_plot(plot_metric='length'))
+            tree.reroot_at_midpoint(update_bipartitions = True)
+
+        else:
+            specific_root = self._specific_rooters(tree)
+
+            if specific_root:
+                root_mrca = tree.mrca(taxon_labels=specific_root)
+
+                if len(specific_root) == 1:
+                    root_len = root_mrca.edge.length
+
+                    if root_len:
+                        tree.reroot_at_edge(root_mrca.edge, 
+                                            length1 = 0, 
+                                            length2 = root_len, 
+                                            update_bipartitions=True, 
+                                            suppress_unifurcations= False)
+
+                    else:
+                        tree.reroot_at_node(root_mrca,
+                                            update_bipartitions=True, 
+                                            suppress_unifurcations= False)
 
                 else:
                     tree.reroot_at_node(root_mrca,
                                         update_bipartitions=True, 
                                         suppress_unifurcations= False)
 
-            else:
-                tree.reroot_at_node(root_mrca,
-                                    update_bipartitions=True, 
-                                    suppress_unifurcations= False)
-
     def _find_Tlikes(self, file_tree):
-        # file_tree = "../E0165.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
-        # file_tree = "../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
-        # file_tree = "../E0004.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed"
+
+        # abs_path = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree"
+        # tree_path = "E0699.listd_allsets.NT_aligned.fasta_trimmed_renamed.nex.tree"
+        # file_tree = os.path.join(abs_path, tree_path)
         # schema = 'newick'
         # file_tree = self.treefiles[0]
 

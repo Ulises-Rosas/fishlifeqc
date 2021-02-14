@@ -275,13 +275,16 @@ can be inside another t-like clade. Then, this command also collapse internal
 branches in function of either length or support values to look for wider 
 range of t-like clades.
 
-Example:
+By default, the gene trees are rooted by using the midpoint distance rooting 
+method, but you can also use specific outgroups (see options).
 
-    * Standar usage:
+Examples:
 
-        $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file]
+    * Standard usage:
 
-            Both taxnomy file is CSV-formated and must contain the following
+        $ fishlifeqc tlike [tree files] -t [taxonomy file]
+
+            Taxonomy file is CSV-formated and must contain the following
             struncture:
 
                 # names       group 0                 group 1                 ... 
@@ -292,6 +295,10 @@ Example:
 
             Where group 0 can represent species names, group 1 genus, etc.
             NA values are empty spaces. 
+
+    * Specify outgroups:
+
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file]
 
             Outgroup file is simple list with tip names in one column. 
             However, it can also contain a priorities in outgroups using two
@@ -309,7 +316,7 @@ Example:
             for rooting gene trees. For example, if any tip of priority '0' is found
             at a gene tree, it is chosen tips of priority '1' to root the gene tree.
 
-    * Collapse internal branches by either support value and branch lengths:
+    * Collapse internal branches by both support value and branch lengths (on that order):
 
         $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file] -l -s
 """)
@@ -323,23 +330,23 @@ tlike.add_argument('-t','--taxonomyfile',
 tlike.add_argument('-g','--outgroup',
                     metavar="",
                     type= str,
-                    help='Outgroup taxa [Default: None]')
+                    help='[Optional] Outgroup taxa [Default: None]')
 tlike.add_argument('-f','--format',
                     metavar="",
                     type= str,
                     default= "newick",
                     help='[Optional] Tree format [Default: newick]') 
-tlike.add_argument('-l','--collapse_bylen',
+tlike.add_argument('-l','--coll_bylen',
                     action="store_true",
                     help='''[Optional] If selected, collapse internal branches by length''')
+tlike.add_argument('-s','--coll_bysupp',
+                    action="store_false",
+                    help='''[Optional] If selected, collapse internal branches by support value''')
 tlike.add_argument('-L', '--min_len',
                     metavar = "",
                     type    = float,
                     default = 0.000001,
                     help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
-tlike.add_argument('-s','--collapse_bysupp',
-                    action="store_false",
-                    help='''[Optional] If selected, collapse internal branches by support value''')
 tlike.add_argument('-S', '--min_supp',
                     metavar = "",
                     type    = float,
@@ -350,11 +357,11 @@ tlike.add_argument('-o','--outfile',
                     type= str,
                     default= "t_like.csv",
                     help='[Optional] Out filename [Default: t_like.csv]')
-tlike.add_argument('-a','--suffix',
-                    metavar="",
-                    type= str,
-                    default= "_fishlife",
-                    help='[Optional] Append a suffix at output files [Default: _fishlife]')         
+# tlike.add_argument('-a','--suffix',
+#                     metavar="",
+#                     type= str,
+#                     default= "_fishlife",
+#                     help='[Optional] Append a suffix at output files [Default: _fishlife]')         
 tlike.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -448,13 +455,13 @@ def main():
         TreeExplore(
             treefiles      = wholeargs.treefiles,
             schema         = wholeargs.format,
-            collpasebylen  = wholeargs.collapse_bylen, # default: false
+            collpasebylen  = wholeargs.coll_bylen, # default: false
             minlen         = wholeargs.min_len,
-            collpasebysupp = wholeargs.collapse_bysupp, # default: false
+            collpasebysupp = wholeargs.coll_bysupp, # default: false
             minsupp        = wholeargs.min_supp,
             taxnomyfile    = wholeargs.taxonomyfile,
             outgroup       = wholeargs.outgroup,
-            suffix         = wholeargs.suffix, 
+            # suffix         = wholeargs.suffix, 
             threads        = wholeargs.threads,
             outfilename    = wholeargs.outfile
         ).find_Tlikes()
