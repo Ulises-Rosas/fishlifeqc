@@ -17,19 +17,22 @@ myos = sys.platform
 if myos == 'darwin':
     bins = [
         './ext_bin/blast/blastn_Darwin_64bit',
-        './ext_bin/blast/makeblastdb_Darwin_64bit'
+        './ext_bin/blast/makeblastdb_Darwin_64bit',
+        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Darwin_64bit'
             ]
 
 elif myos == 'linux' or myos == "linux2":
     bins = [
         './ext_bin/blast/blastn_Linux_64bit',
-        './ext_bin/blast/makeblastdb_Linux_64bit'
+        './ext_bin/blast/makeblastdb_Linux_64bit',
+        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Linux_64bit'
             ]
 
 elif myos == 'win32':
     bins = [
         './ext_bin/blast/blastn.exe',
-        './ext_bin/blast/makeblastdb.exe'
+        './ext_bin/blast/makeblastdb.exe',
+        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3.exe'
             ]
 else:
     sys.stderr.write('Package does not work with %s operative system'  % myos)

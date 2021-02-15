@@ -3,10 +3,13 @@
 import os
 import sys
 import csv
+import glob
 import copy
+import runshell
 import dendropy
 from multiprocessing import Pool
 from fishlifeseq import headers
+from fishlifeqc.utils import fas_to_dic
 
 # import inspect
 # import pprint
@@ -16,6 +19,19 @@ from fishlifeseq import headers
 #         indent= 4
 #     )
 
+
+myos = sys.platform
+
+if myos == 'darwin':
+    RAXML = 'raxmlHPC-PTHREADS-SSE3_Darwin_64bit'
+
+elif myos == 'linux' or  myos == 'linux2':
+    RAXML = 'raxmlHPC-PTHREADS-SSE3_Linux_64bit'
+
+elif myos == 'win32':
+    RAXML = 'raxmlHPC-PTHREADS-SSE3.exe'
+
+
 class BLCorrelations:
 
     def __init__(self,
@@ -24,47 +40,28 @@ class BLCorrelations:
                 suffix  = '_constr.tree',
                 prefix = "BL_",
                 with_bl = False,
-                cons_trees = None,
+                # cons_trees = None,
                 ratio_threshold = 5,
                 pearson_threshold = 0.5,
-                threads = 1):
+                threads = 1,
+                raxml_exe = RAXML,
+                evomodel = 'GTRGAMMA',
+                iterations = 2):
         
         self.species_tree_file = species_tree_file
         self.sequences = sequences
         self.suffix = suffix
         self.prefix = prefix
         self.with_bl = with_bl
-        self.cons_trees = cons_trees
+        # self.cons_trees = cons_trees
         self.ratio_threshold = ratio_threshold
         self.pearson_threshold = pearson_threshold
         
         self.threads = threads
 
-    @property
-    def _spps_tree(self):
-        """
-        Read species tree file 
-        from the initial variable
-        `self.species_tree_file`
-
-        Returns
-        -------
-        Tree : str
-            Tree str
-        """
-        try:
-            tree = dendropy.Tree.get(
-                        path   = self.species_tree_file, 
-                        schema = 'newick',
-                        preserve_underscores = True
-                    )
-
-        except dendropy.dataio.newickreader.NewickReader.NewickReaderMalformedStatementError:
-            sys.stderr.write("Error reading: %s\n" % self.species_tree_file)
-            sys.stderr.flush()
-            exit()
-
-        return tree.as_string(schema = 'newick')
+        self.raxml_exe = raxml_exe
+        self.evomodel = evomodel
+        self.iterations = iterations
 
     @property
     def __spps_tree__(self):
@@ -104,15 +101,7 @@ class BLCorrelations:
             taxa specified in a fasta file
         """
         # sequence = sequence[0]
-        bmfile = os.path.basename( sequence )
-
-        sys.stdout.write("Processing: %s\n" % bmfile)
-        sys.stdout.flush()
-
-        tree = dendropy.Tree.get_from_string(
-                self._spps_tree, 
-                schema = 'newick'
-            )
+        tree = copy.deepcopy(self.__spps_tree__)
 
         out_name = sequence + self.suffix
         taxa     = self._get_taxa(sequence)
@@ -127,14 +116,26 @@ class BLCorrelations:
             unquoted_underscores = True
         )
 
-    def get_constraints(self):
+        return (sequence, out_name)
+
+    def get_constraints(self, quiet = False):
         """
         Run in parallel `self._prunning()`
         """
-        self._spps_tree
+        # self._spps_tree
+        out = []
         with Pool(processes = self.threads) as p:
             for seq_file in self.sequences:
-                p.apply_async(self._prunning, (seq_file,)).get()
+
+                if not quiet:
+                    bmfile = os.path.basename( seq_file )
+                    sys.stdout.write("Pruning tree: %s\n" % bmfile)
+                    sys.stdout.flush()
+
+                out.append(
+                    p.apply_async(self._prunning, (seq_file,)).get()
+                )
+        return out
 
     def uRF(self, tree1, tree2):
         """
@@ -183,16 +184,36 @@ class BLCorrelations:
     def filter_dict(self, mdict, threshold = 5):
         return {k:v for k,v in mdict.items() if v >= threshold}
 
+    def terminal_bls(self, tree):
+        """
+        terminal branch lengths
+        """
+        df = {}
+        for nd in tree.postorder_edge_iter():
+            if nd.length is None:
+                continue
+            taxn = nd.head_node.taxon
+            if taxn:
+                df[taxn.label] = nd.length
+
+        return df
+
     def root_ratios(self, ref_tree, cons_tree, threshold):
 
-        dist_ref  = self.root_distance(ref_tree)
-        dist_cons = self.root_distance(cons_tree)
+        # ref_tree, cons_tree, threshold = cp_spps_tree, _cons_tree, self.ratio_threshold 
+        # dist_ref  = self.root_distance(ref_tree)
+        # dist_cons = self.root_distance(cons_tree)
+        dist_ref  = self.terminal_bls(ref_tree) # {A:float(), B:float()}
+        dist_cons = self.terminal_bls(cons_tree)
         ratios    = self.root_distance_ratios(dist_ref, dist_cons)
 
         return self.filter_dict(ratios, threshold=threshold)
 
     def waiting_times(self, tree):
-
+        """
+        branch lengths from tip to 
+        root nodes for each taxon
+        """
         out = {}
         for nd in tree.preorder_node_iter():
             if nd.is_leaf():
@@ -280,10 +301,12 @@ class BLCorrelations:
 
         return pearson_r if pearson_r < self.pearson_threshold else None
 
-    def _BL(self, _cons_tree_f):
+    def _BL(self, seq_cons_tree_f):
+
+        myseq,_cons_tree_f = seq_cons_tree_f
 
         bmfile = os.path.basename(_cons_tree_f)
-        sys.stdout.write("Processing: %s\n" % bmfile)
+        sys.stdout.write("Processing BL: %s\n" % bmfile)
         sys.stdout.flush()
 
         cp_spps_tree = copy.deepcopy(self.__spps_tree__)
@@ -314,39 +337,57 @@ class BLCorrelations:
         if robfould:
             sys.stderr.write("Topologies do not match: %s\n" % bmfile)
             sys.stderr.flush()
-            return (False, bmfile, None, None)
+            # return (False, None, bmfile, None, None)
+            return (False, myseq, None, None)
 
         ref_bls  = self.waiting_times(cp_spps_tree)
         cons_bls = self.waiting_times(_cons_tree)
         bl_table = self.align_values(cons_bls, ref_bls)
 
         pearson = self.pearson_corr( bl_table )
-        ratio   = self.root_ratios( cp_spps_tree, _cons_tree, threshold = self.ratio_threshold )
+        ratio   = self.root_ratios(cp_spps_tree, _cons_tree, threshold = self.ratio_threshold)
 
-        return (True, bmfile, ratio, pearson)
+        self.__remove_files__([ _cons_tree_f ])
+        # return (True, myseq, bmfile, ratio, pearson)
+        return (True, myseq, ratio, pearson)
+
+    def write_down_seq(self, myseq, deletion_list):
+
+        out_name = os.path.basename(myseq) + "_" + self.prefix.replace("_", "")
+        aln      = fas_to_dic(myseq)
+
+        with open( out_name, 'w') as f:
+            for k,v in aln.items():
+                if not k.replace(">", "") in deletion_list:
+                    f.write("%s\n%s\n" % (k,v))
 
     def BrL_reduce(self, tables):
 
-        ratio_table     = [["tree_name", "tip", "ratio"]]
-        pearson_r_table = [["tree_name", "pearson_r"]]
-        diff_topo       = [['Tree_name']]
+        ratio_table     = [["seq_name", "tip", "ratio"]]
+        pearson_r_table = [["seq_name", "pearson_r"]]
+        diff_topo       = [['seq_name']]
 
         # diff_topo.append(['dfas'])
 
         for table in tables:
 
-            match_topo,treen,ratio,pearson = table
+            match_topo,myseq,ratio,pearson = table
+            bmfile = os.path.basename(myseq)
 
             if not match_topo:
-                diff_topo.append([treen])
+                diff_topo.append([bmfile])
                 continue
 
             if ratio:
                 for k,v in ratio.items():
-                    ratio_table.append([ treen, k, v ])
+                    ratio_table.append([ bmfile, k, v ])
 
             if pearson:
-                pearson_r_table.append([ treen, pearson ])
+                pearson_r_table.append([ bmfile, pearson ])
+
+            if not pearson:
+                deletion_list = ratio if ratio else []
+                self.write_down_seq(myseq, deletion_list)
 
         if len(ratio_table) > 1:
             with open(self.prefix + "ratio.csv", 'w') as f:
@@ -363,12 +404,76 @@ class BLCorrelations:
                 writer = csv.writer(f)
                 writer.writerows(diff_topo)
 
+    def __remove_files__(self, files):
+        for f in files:
+            try:
+                os.remove(f)
+            except FileNotFoundError:
+                pass
+
+    def __remove_raxmlfs__(self, seq, seq_basename):
+
+        self.__remove_files__(
+            [seq + ".reduced", seq + "_constr.tree"]  +\
+            glob.glob( "RAxML_log."    + seq_basename + "*" ) +\
+            glob.glob( "RAxML_result." + seq_basename + "*" ) +\
+            glob.glob( "RAxML_info."   + seq_basename + "*" )
+        )
+
+    def __get_constr_tree__(self):
+        seq_pruned   = self.get_constraints()
+        raxml_failed = []
+        cons_trees   = []
+
+        for seq,pruned in seq_pruned:
+            seq_basename = os.path.basename(seq)
+            suffix = seq_basename + "_raxml"
+            pruned = seq + "_constr.tree"
+
+            cmd = """
+                {raxml}         \
+                    -p 12345    \
+                    -g {pruned} \
+                    -m {model}  \
+                    -s {seq}    \
+                    -n {suffix} \
+                    -T {threads}\
+                    --silent    \
+                    -N {runs}""".format(
+                        raxml   = self.raxml_exe,
+                        pruned  = pruned,
+                        model   = self.evomodel,
+                        seq     = seq,
+                        suffix  = suffix,
+                        threads = self.threads,
+                        runs    = self.iterations).strip()
+
+            status = runshell.get(cmd)
+            self.__remove_raxmlfs__(seq, seq_basename)
+
+            if status:
+                raxml_failed.append([seq])
+                continue
+
+            cons_trees.append( (seq, "RAxML_bestTree." + seq_basename + "_raxml") )
+
+        return (raxml_failed, cons_trees)
+
     def BrLengths(self):
+        raxml_failed, cons_trees = self.__get_constr_tree__()
+
+        if raxml_failed:
+            with open( self.prefix + "raxml_failures.txt", 'w') as f:
+                writer = csv.writer(f)
+                writer.writerows([['seq_name']] + raxml_failed)
+
+        if not cons_trees:
+            return None
 
         with Pool(processes = self.threads) as p:
 
             preout = []
-            for file_tree in self.cons_trees:
+            for file_tree in cons_trees:
                 # result = self._BL(file_tree)
                 result = p.apply_async(self._BL, (file_tree,))
                 preout.append(result)
@@ -378,7 +483,17 @@ class BLCorrelations:
 
 # _spps_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/prota_all_trimm_noT.ML_spp.tree"
 # _cons_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/ATP6_model_fixed.tree"
-# # _cons_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/E0699_model_inferred_all.tree"
-# _cons_tree_f2 = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/E0699_model_fixed.tree" 
+# _cons_tree_f2 = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/E0699_model_inferred_all.tree"
+# _cons_tree_f2 = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/E0699_model_inferred_all.tree"
+# _cons_tree_f = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/example/E0699_model_fixed.tree" 
+# sequences = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/E0699.listd_allsets.NT_aligned.fasta_trimmed_renamed"
+# sequences2 = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree/ATP6.listd_allsets.NT_aligned.fasta_trimmed_renamed"
+# seq = sequences
 
-# BLCorrelations(species_tree_file=_spps_tree_f, cons_trees=[_cons_tree_f, _cons_tree_f2]).BrLengths()
+# self = BLCorrelations(
+#     species_tree_file = _spps_tree_f,
+#     sequences         = [sequences,sequences2]
+# )
+# self.BrLengths()
+
+

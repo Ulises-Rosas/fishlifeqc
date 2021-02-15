@@ -380,24 +380,46 @@ bl = subparsers.add_parser('bl',
                 Branch length rations and person correlations
 
 Both metrics are obtained by comparing a constrained
-trees with the prunning of a reference tree
+trees with a pruned reference tree
 
 Example:
 
     * Standar usage:
 
-        $ fishlifeqc bl [tree files] -t [reference tree]
+        $ fishlifeqc bl [sequences] -t [reference tree]
 """)
 
-bl.add_argument('treefiles',
+bl.add_argument('sequences',
                 nargs="+",
+                type=str,
                 help='Filenames')
 bl.add_argument('-t','--reference',
-                metavar="",
+                metavar="n",
                 type= str,
+                default=None,
                 required= True,
-                help='Reference tree [Default: None]') 
-bl.add_argument('-p','--prefix',
+                help='Reference tree in newick format [Default: None]')
+bl.add_argument('-r', '--max_ratio',
+                 metavar = "",
+                 type    = float,
+                 default = 5.0,
+                 help    = '[Optional] Constrained/pruned tree maximum ratio allowed [Default: 5]')
+bl.add_argument('-p', '--min_pearson',
+                 metavar = "",
+                 type    = float,
+                 default = 0.5,
+                 help    = '[Optional] Minimum pearson correlation allowed [Default: 0.5]')
+bl.add_argument('-e','--evomol',
+                 metavar="",
+                 type= str,
+                 default = 'GTRGAMMA',
+                 help='[Optional] RAxML evol. model for constrained tree inference [Default: None]')
+bl.add_argument('-i', '--iterations',
+                metavar = "",
+                type    = int,
+                default = 1,
+                help    = '[Optional] Number of iterations for MLEs [Default: 1]')
+bl.add_argument('-f','--prefix',
                 metavar="",
                 type= str,
                 default= "BL_",
@@ -470,7 +492,11 @@ def main():
 
         BLCorrelations(
             species_tree_file = wholeargs.reference,
-            cons_trees        = wholeargs.treefiles,
+            sequences         = wholeargs.sequences,
+            ratio_threshold   = wholeargs.max_ratio,
+            pearson_threshold = wholeargs.min_pearson,
+            iterations        = wholeargs.iterations,
+            evomodel          = wholeargs.evomodel,
             prefix            = wholeargs.prefix,
             threads           = wholeargs.threads
         ).BrLengths()
