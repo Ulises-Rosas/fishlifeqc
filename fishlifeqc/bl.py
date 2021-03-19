@@ -420,8 +420,8 @@ class BLCorrelations:
             glob.glob( "RAxML_info."   + seq_basename + "*" )
         )
 
-    def __get_constr_tree__(self):
-        seq_pruned   = self.get_constraints()
+    def __iter_raxml__(self, seq_pruned):
+
         raxml_failed = []
         cons_trees   = []
 
@@ -458,6 +458,11 @@ class BLCorrelations:
             cons_trees.append( (seq, "RAxML_bestTree." + seq_basename + "_raxml") )
 
         return (raxml_failed, cons_trees)
+
+    def __get_constr_tree__(self):
+        seq_pruned   = self.get_constraints()
+
+        return self.__iter_raxml__(seq_pruned)
 
     def BrLengths(self):
         raxml_failed, cons_trees = self.__get_constr_tree__()
