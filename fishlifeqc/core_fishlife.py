@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # import sys
 import argparse
@@ -340,7 +340,7 @@ tlike.add_argument('-l','--coll_bylen',
                     action="store_true",
                     help='''[Optional] If selected, collapse internal branches by length''')
 tlike.add_argument('-s','--coll_bysupp',
-                    action="store_false",
+                    action="store_true",
                     help='''[Optional] If selected, collapse internal branches by support value''')
 tlike.add_argument('-L', '--min_len',
                     metavar = "",
@@ -377,7 +377,7 @@ bl = subparsers.add_parser('bl',
                             description="""
 
 
-                Branch length rations and person correlations
+                Branch length rations and pearson correlations
 
 Both metrics are obtained by comparing a constrained
 trees with a pruned reference tree

@@ -813,6 +813,7 @@ class TreeExplore:
         # abs_path = "/Users/ulises/Desktop/GOL/software/fishlifeqc/fishlifeqc/test_tree"
         # tree_path = "E0699.listd_allsets.NT_aligned.fasta_trimmed_renamed.nex.tree"
         # file_tree = os.path.join(abs_path, tree_path)
+        # file_tree = '/Users/ulises/Desktop/demo/tlike/E0004.tree'
         # schema = 'newick'
         # file_tree = self.treefiles[0]
 
@@ -825,18 +826,20 @@ class TreeExplore:
             tree = dendropy.Tree.get(
                         path   = file_tree, 
                         schema = self.schema,
-                        preserve_underscores = True
+                        preserve_underscores = True,
+                        rooting='default-rooted' # makes figtree-like rooting
                     )
         except dendropy.dataio.newickreader.NewickReader.NewickReaderMalformedStatementError:
             sys.stderr.write("Error reading: %s\n" % bmfile)
             sys.stderr.flush()
             return None
 
-        self._rooting(tree)
-
         if self.collapsebylen or self.collpasebysupp:
+            # collapse affects rooting
+            # then, this goes first
             self.collapse(tree)
 
+        self._rooting(tree)
         # print(tree.as_ascii_plot(plot_metric = 'length') )
         # print(tree.as_ascii_plot() )
         # print(tree.as_string(schema = 'newick') )
@@ -939,12 +942,13 @@ class TreeExplore:
 # [i.taxon for i in tree.leaf_node_iter()]
 
 # self = TreeExplore(
-#     taxnomyfile= "./../taxa_tlike.csv", 
-#     outgroup= "./../taxa_outgroup.txt",
-#     treefiles=['./../E0025.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile_renamed']
+#     taxnomyfile= "/Users/ulises/Desktop/demo/tlike/taxa_tlike.csv", 
+#     outgroup= None,
+#     collpasebysupp=True,
+#     treefiles=['/Users/ulises/Desktop/demo/tlike/E0004.tree']
 # )
 
-# self._t_like_taxa
+# self.find_Tlikes()
 
 # def getOpts():
 
