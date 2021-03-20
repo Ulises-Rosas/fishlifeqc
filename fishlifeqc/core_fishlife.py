@@ -296,6 +296,10 @@ Examples:
             Where group 0 can represent species names, group 1 genus, etc.
             NA values are empty spaces. 
 
+    * Collapse internal branches by branch lengths:
+
+        $ fishlifeqc tlike [tree files] -t [taxonomy file] -l 
+
     * Specify outgroups:
 
         $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file]
@@ -315,10 +319,6 @@ Examples:
             The lesser this number, higher the priority to choose those tip names
             for rooting gene trees. For example, if any tip of priority '0' is found
             at a gene tree, it is chosen tips of priority '1' to root the gene tree.
-
-    * Collapse internal branches by both support value and branch lengths (on that order):
-
-        $ fishlifeqc tlike [tree files] -t [taxonomy file] -g [outgroup file] -l -s
 """)
 tlike.add_argument('treefiles',
                     nargs="+",
@@ -339,14 +339,16 @@ tlike.add_argument('-f','--format',
 tlike.add_argument('-l','--coll_bylen',
                     action="store_true",
                     help='''[Optional] If selected, collapse internal branches by length''')
-tlike.add_argument('-s','--coll_bysupp',
-                    action="store_true",
-                    help='''[Optional] If selected, collapse internal branches by support value''')
+tlike.add_argument('-u','--ucoll_bysupp',
+                    action="store_false",
+                    help='''[Optional] If selected, internal branches are not collapsed by support value''')
 tlike.add_argument('-L', '--min_len',
                     metavar = "",
                     type    = float,
                     default = 0.000001,
-                    help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
+                    help    = '''[Optional] minimun branch length to collapse 
+                    internal branch. This value is also used to 
+                    define T-like clades [Default: 0.000001]''')
 tlike.add_argument('-S', '--min_supp',
                     metavar = "",
                     type    = float,
@@ -357,11 +359,6 @@ tlike.add_argument('-o','--outfile',
                     type= str,
                     default= "t_like.csv",
                     help='[Optional] Out filename [Default: t_like.csv]')
-# tlike.add_argument('-a','--suffix',
-#                     metavar="",
-#                     type= str,
-#                     default= "_fishlife",
-#                     help='[Optional] Append a suffix at output files [Default: _fishlife]')         
 tlike.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -479,7 +476,7 @@ def main():
             schema         = wholeargs.format,
             collpasebylen  = wholeargs.coll_bylen, # default: false
             minlen         = wholeargs.min_len,
-            collpasebysupp = wholeargs.coll_bysupp, # default: false
+            collpasebysupp = wholeargs.ucoll_bysupp, # default: true (counter pattern)
             minsupp        = wholeargs.min_supp,
             taxnomyfile    = wholeargs.taxonomyfile,
             outgroup       = wholeargs.outgroup,
