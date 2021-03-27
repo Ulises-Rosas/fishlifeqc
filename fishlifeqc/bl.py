@@ -428,7 +428,7 @@ class BLCorrelations:
         for seq,pruned in seq_pruned:
             seq_basename = os.path.basename(seq)
             suffix = seq_basename + "_raxml"
-            pruned = seq + "_constr.tree"
+            # pruned = seq + "_constr.tree"
 
             cmd = """
                 {raxml}         \
