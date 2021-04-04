@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import sys
 import platform
@@ -17,14 +17,22 @@ if myos == 'darwin':
     bins = [
         './ext_bin/blast/blastn_Darwin_64bit',
         './ext_bin/blast/makeblastdb_Darwin_64bit',
-        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Darwin_64bit'
+        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Darwin_64bit',
+        './ext_bin/consel/darwin/seqmt',
+        './ext_bin/consel/darwin/makermt',
+        './ext_bin/consel/darwin/consel',
+        './ext_bin/consel/darwin/catpv'
             ]
 
 elif myos == 'linux' or myos == "linux2":
     bins = [
         './ext_bin/blast/blastn_Linux_64bit',
         './ext_bin/blast/makeblastdb_Linux_64bit',
-        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Linux_64bit'
+        './ext_bin/raxml/raxmlHPC-PTHREADS-SSE3_Linux_64bit',
+        './ext_bin/consel/linux/seqmt',
+        './ext_bin/consel/linux/makermt',
+        './ext_bin/consel/linux/consel',
+        './ext_bin/consel/linux/catpv'
             ]
 
 elif myos == 'win32':
