@@ -192,8 +192,9 @@ class Missingdata:
             return self.filter_stopcodons(trimmed)
         else:
             return None
-            
-    def close_gaps(self, aln: dict, is_codon_aware: bool = True) -> dict:
+
+    @staticmethod
+    def close_gaps(aln: dict, is_codon_aware: bool = True) -> dict:
         """
         It closes the empty columns formed by 
         `self.sequencecompleteness` function

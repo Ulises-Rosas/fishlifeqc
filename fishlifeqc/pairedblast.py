@@ -275,7 +275,7 @@ class Pairedblast:
 
         with open( myfile + self.suffix, 'w') as f:
             # Close gaps :
-            newfasta = Missingdata().close_gaps(newfasta, self.codon_aware)
+            newfasta = Missingdata.close_gaps(newfasta, self.codon_aware)
 
             for h,s in newfasta.items():
                 f.write("%s\n%s\n" % (h,s))
