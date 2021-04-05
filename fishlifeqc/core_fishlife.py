@@ -377,7 +377,11 @@ bl = subparsers.add_parser('bl',
                 Branch length rations and pearson correlations
 
 Both metrics are obtained by comparing a constrained
-trees with a pruned reference tree
+trees with a pruned reference tree.
+
+Branch length ratios compares terminal branch lenghts. 
+Pearson correlation uses branch lengths from root to tips.
+
 
 Example:
 
@@ -410,7 +414,10 @@ bl.add_argument('-e','--evomol',
                  metavar="",
                  type= str,
                  default = 'GTRGAMMA',
-                 help='[Optional] RAxML evol. model for constrained tree inference [Default: None]')
+                 help='[Optional] RAxML evol. model for constrained tree inference [Default: GTRGAMMA]')
+bl.add_argument('-c','--codon_aware',
+                 action="store_true",
+                 help='[Optional] If selected, codon partition file is added')
 bl.add_argument('-i', '--iterations',
                 metavar = "",
                 type    = int,
@@ -486,6 +493,7 @@ def main():
         ).find_Tlikes()
 
     elif wholeargs.subcommand == 'bl':
+        # print(wholeargs)
 
         BLCorrelations(
             species_tree_file = wholeargs.reference,
@@ -493,8 +501,9 @@ def main():
             ratio_threshold   = wholeargs.max_ratio,
             pearson_threshold = wholeargs.min_pearson,
             iterations        = wholeargs.iterations,
-            evomodel          = wholeargs.evomodel,
+            evomodel          = wholeargs.evomol,
             prefix            = wholeargs.prefix,
+            codon_partition   = wholeargs.codon_aware,
             threads           = wholeargs.threads
         ).BrLengths()
 

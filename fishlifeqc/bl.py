@@ -5,11 +5,11 @@ import sys
 import csv
 import glob
 import copy
-import runshell
+# import runshell
 import dendropy
 from multiprocessing import Pool
 from fishlifeseq import headers
-from fishlifeqc.utils import fas_to_dic
+from fishlifeqc.utils import fas_to_dic, remove_files, runshell, codon_partitions
 
 # import inspect
 # import pprint
@@ -46,6 +46,7 @@ class BLCorrelations:
                 threads = 1,
                 raxml_exe = RAXML,
                 evomodel = 'GTRGAMMA',
+                codon_partition = True,
                 iterations = 2):
         
         self.species_tree_file = species_tree_file
@@ -61,6 +62,7 @@ class BLCorrelations:
 
         self.raxml_exe = raxml_exe
         self.evomodel = evomodel
+        self.codon_partition = codon_partition
         self.iterations = iterations
 
     @property
@@ -347,7 +349,7 @@ class BLCorrelations:
         pearson = self.pearson_corr( bl_table )
         ratio   = self.root_ratios(cp_spps_tree, _cons_tree, threshold = self.ratio_threshold)
 
-        self.__remove_files__([ _cons_tree_f ])
+        remove_files([ _cons_tree_f ])
         # return (True, myseq, bmfile, ratio, pearson)
         return (True, myseq, ratio, pearson)
 
@@ -404,17 +406,16 @@ class BLCorrelations:
                 writer = csv.writer(f)
                 writer.writerows(diff_topo)
 
-    def __remove_files__(self, files):
-        for f in files:
-            try:
-                os.remove(f)
-            except FileNotFoundError:
-                pass
-
     def __remove_raxmlfs__(self, seq, seq_basename):
 
-        self.__remove_files__(
-            [seq + ".reduced", seq + "_constr.tree"]  +\
+        remove_files(
+            [
+                seq + ".reduced", 
+                seq + "_constr.tree", 
+                seq + ".stdout",
+                seq_basename + ".partitions",
+                seq_basename + ".partitions.reduced"
+             ]  + \
             glob.glob( "RAxML_log."    + seq_basename + "*" ) +\
             glob.glob( "RAxML_result." + seq_basename + "*" ) +\
             glob.glob( "RAxML_info."   + seq_basename + "*" )
@@ -427,8 +428,20 @@ class BLCorrelations:
 
         for seq,pruned in seq_pruned:
             seq_basename = os.path.basename(seq)
+
+            sys.stdout.write("Getting constrained RAxML tree for: %s\n" % seq_basename)
+            sys.stdout.flush()
+
             suffix = seq_basename + "_raxml"
             # pruned = seq + "_constr.tree"
+
+            if self.codon_partition:
+                part_out = seq_basename + ".partitions"
+                partition_cmd = "-q %s" % part_out
+                codon_partitions(file = seq, outname = part_out, nexus = False)
+
+            else:
+                partition_cmd = ""
 
             cmd = """
                 {raxml}         \
@@ -436,6 +449,7 @@ class BLCorrelations:
                     -g {pruned} \
                     -m {model}  \
                     -s {seq}    \
+                    {partitions}\
                     -n {suffix} \
                     -T {threads}\
                     --silent    \
@@ -444,14 +458,18 @@ class BLCorrelations:
                         pruned  = pruned,
                         model   = self.evomodel,
                         seq     = seq,
+                        partitions = partition_cmd,
                         suffix  = suffix,
                         threads = self.threads,
                         runs    = self.iterations).strip()
 
-            status = runshell.get(cmd)
+            runshell( (cmd.split(), seq + ".stdout"), type = "stdout" )
+
             self.__remove_raxmlfs__(seq, seq_basename)
 
-            if status:
+            is_there_out = os.path.isfile("RAxML_bestTree."+suffix)
+            
+            if not is_there_out:
                 raxml_failed.append([seq])
                 continue
 
@@ -461,11 +479,17 @@ class BLCorrelations:
 
     def __get_constr_tree__(self):
         seq_pruned   = self.get_constraints()
+        
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
         return self.__iter_raxml__(seq_pruned)
 
     def BrLengths(self):
         raxml_failed, cons_trees = self.__get_constr_tree__()
+
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
         if raxml_failed:
             with open( self.prefix + "raxml_failures.txt", 'w') as f:
