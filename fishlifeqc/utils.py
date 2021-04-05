@@ -8,9 +8,16 @@ import xml.etree.ElementTree as ET
 
 # import matplotlib.pyplot as plt
 
-def runshell(args):
-    p = subprocess.Popen(args)
-    p.communicate()
+def runshell(args, type = ""):
+    
+    if type == "stdout":
+        a, b = args
+        with open(b, "w") as f:
+            subprocess.call(a, stdout= f)
+
+    else:
+        p = subprocess.Popen(args)
+        p.communicate()
 
 def isfasta(file):
 
@@ -54,7 +61,45 @@ def fas_to_dic(file):
         
     return dict(zip(keys, values))
 
+def codon_partitions(file, outname = None, nexus = True):
+    # file = "../E1357.unaligned.fasta_listd_lily.NT_aligned.fasta_trimmed_rblastd"
+    aln = fas_to_dic(file)
+    lengths = set([len(v) for _,v in aln.items()])
+
+    if lengths.__len__() > 1:
+        sys.stderr.write("'%s' file has sequences with different lengths\n" % file)
+        sys.stderr.flush()
+        return file
+
+    aln_length = lengths.pop()
+
+    if not outname:
+        outname  = file + ".nex" 
+        
+    if nexus:
+        with open(outname, 'w') as outf:
+            outf.write("#nexus\n")
+            outf.write("begin sets;\n")
+            outf.write("\tcharset pos_1 = %s: 1-%s\\3;\n" % (file, aln_length))
+            outf.write("\tcharset pos_2 = %s: 2-%s\\3;\n" % (file, aln_length))
+            outf.write("\tcharset pos_3 = %s: 3-%s\\3;\n" % (file, aln_length))
+            outf.write("end;\n")
+    else:
+        with open(outname, 'w') as outf:
+            outf.write("DNA, p1 = 1-%s\\3\n" % aln_length)
+            outf.write("DNA, p2 = 2-%s\\3\n" % aln_length)
+            outf.write("DNA, p3 = 3-%s\\3\n" % aln_length)
+
+    return None
+
 def codon_partitions_nexus(file):
+    """
+    special case of `codon_partition`. It
+    is left as is due to:
+    i)  compatibility with `codon_partitions`
+    ii) since it accepts only one arguments, it can
+        be parallelized right away
+    """
     # file = "../E1357.unaligned.fasta_listd_lily.NT_aligned.fasta_trimmed_rblastd"
     aln = fas_to_dic(file)
     lengths = set([len(v) for _,v in aln.items()])
@@ -76,6 +121,23 @@ def codon_partitions_nexus(file):
         outf.write("end;\n")
 
     return None
+
+def remove_files(files):
+
+    for f in files:
+        try:
+            os.remove(f)
+        except FileNotFoundError:
+            pass
+
+def export_fasta(aln: dict, outname: str):
+    """
+    This function assumes sequences names
+    are already formated (i.e., names starting with ">")
+    """
+    with open(outname, 'w') as f:
+        for k,v in aln.items():
+            f.write( "%s\n%s\n" % (k,v))
 
 # def plotcounts(by, outliers, identity, first = 20):
 
