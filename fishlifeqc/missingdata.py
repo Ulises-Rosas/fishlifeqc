@@ -1,3 +1,4 @@
+from multiprocessing.pool import ApplyResult
 import sys
 import argparse
 from multiprocessing import Pool
@@ -194,16 +195,29 @@ class Missingdata:
             return None
 
     @staticmethod
+    def convertN2Gap(aln: dict) -> dict:
+
+        for k,v in aln.items():
+            aln[k] = v.replace("N", "-")
+
+        return aln
+
+    @staticmethod
     def close_gaps(aln: dict, is_codon_aware: bool = True) -> dict:
         """
         It closes the empty columns formed by 
         `self.sequencecompleteness` function
+
+        `Missingdata.convertN2Gap` is used
+        both aligner and `self.filter_stopcodons` add "N"s.
+        Used once if called from other module (e.g.,`monophyly.py`)
         """
         # aln = {'a':'---cat--a', 'b':'---cat--a'}
         # is_codon_aware = not True
+        aln = Missingdata.convertN2Gap(aln)
 
         offset = 3 if is_codon_aware else 1
-        seqlength = len(aln[ list(aln)[0] ])
+        seqlength = len( list( aln.values() )[0] )
 
         idxs = []
         for c in range(0, seqlength, offset):
@@ -239,12 +253,24 @@ class Missingdata:
                 f.write( "%s\n%s\n" % (k,v))
 
     def trimiterator(self, fasta):
+        """
+        Main trimmer
+        ============
+
+        Sequences are pre-processed by
+        converting N to "-" due to some aligners
+        add "N"s to increase the score of the alignment.
+        This is particularly true for the MACSE aligner
+        whose algorithm can add up to two N when it cannot fit
+        a base to any surrounding codons.
+        """
 
         # fasta = self.fasta[0]
         if not isfasta(fasta):
             return None
 
         alignment = fas_to_dic(fasta)
+        alignment = Missingdata.convertN2Gap(alignment)
         seqlength = self.check_aln(alignment, fasta)
 
         if not seqlength:
