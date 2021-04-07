@@ -39,7 +39,9 @@ def fas_to_dic(file):
     seqs_list   = []
     
     for i in file_content:
-        seqs_list.append(i.replace("\n", "")) 
+        line = i.strip()
+        if line: # just if file starts empty
+            seqs_list.append(line) 
     
     keys = [] 
     values = []    
