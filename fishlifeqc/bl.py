@@ -426,10 +426,15 @@ class BLCorrelations:
         raxml_failed = []
         cons_trees   = []
 
+        if self.codon_partition:
+            running_msg = "Getting constrained RAxML tree with codon partition for:"
+        else:
+            running_msg = "Getting constrained RAxML tree for:"
+
         for seq,pruned in seq_pruned:
             seq_basename = os.path.basename(seq)
 
-            sys.stdout.write("Getting constrained RAxML tree for: %s\n" % seq_basename)
+            sys.stdout.write( "%s %s\n" % (running_msg, seq_basename))
             sys.stdout.flush()
 
             suffix = seq_basename + "_raxml"
