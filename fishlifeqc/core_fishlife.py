@@ -61,14 +61,14 @@ missingdata.add_argument('sequences',
 missingdata.add_argument('-e','--edges', 
                     metavar="",
                     type = float,
-                    default = 0.1,
+                    default = 0.6,
                     help='''[Optional] Maximum allowed gap proportion per column at edges. 
                             Sequence columns at edges with more than 
                             this value are removed [Default: %s]''' % 0.6)
 missingdata.add_argument('-i','--internal', 
                     metavar="",
                     type = float,
-                    default = 0.1,
+                    default = 0.6,
                     help='''[Optional] Maximum allowed gap proportion per internal column. 
                             Sequence internal columns with more than 
                             this value are removed [Default: %s]''' % 0.6)
