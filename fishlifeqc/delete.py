@@ -8,10 +8,12 @@ class Deletion:
 
     def __init__(self, 
                 sequences   = None,
-                controlfile = None, 
+                controlfile = None,
+                deletion_list = None,
                 filetype    = 'list',
                 threads     = 1):
 
+        self.deletion_list = deletion_list # plain list of species
         self.sequences   = sequences
         self.controlfile = controlfile
         self.filetype    = filetype
@@ -81,6 +83,61 @@ class Deletion:
         with Pool(processes = self.threads) as p:
             for seq in list(self._control_file):
                 p.apply_async( self._header_exon, (seq,) ).get()
+
+    def _read_deletion_list(self):
+        out = []
+
+        if not self.deletion_list:
+            return out
+
+        with open(self.deletion_list, 'r') as f:
+            for i in f.readlines():
+                line = i.strip()
+                if line:
+                    out.append(line)
+        return out
+
+    def delete_by_custom_list(self, aln: dict, custom_list: list = None):
+
+        if not aln:
+            return None
+
+        if not custom_list:
+            return aln
+
+        out = {}
+        for k,v in aln.items():
+            header = k.strip().replace(">", "")
+            if not header in custom_list:
+                out[k] = v
+
+        if not out:
+            return None
+
+        return out    
+        
+    def customCountTrimming(self, aln  : dict,
+                            min_count  : int = 30, 
+                            custom_list: list = None) -> dict:
+        """
+        Moves:
+        1. delete by using a custom list (if not empty)
+        2. delete by minimum amount of sequence headers
+
+        returns None if not sequences
+        """
+
+        aln = self.delete_by_custom_list(aln, custom_list)
+
+        if not aln:
+            return None
+
+        nheader = len(list(aln))
+
+        if nheader < min_count:
+            return None
+
+        return aln
 
 # Deletion(
 #     sequences   =  ['data/COI.NT_aligned.fasta_trimmed',

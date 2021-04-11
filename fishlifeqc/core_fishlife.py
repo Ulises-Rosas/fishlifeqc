@@ -2,8 +2,9 @@
 
 # import sys
 import argparse
+from typing import List
 from fishlifeqc.pairedblast import Pairedblast
-from fishlifeqc.missingdata import Missingdata
+from fishlifeqc.missingdata import Missingdata, STOP_CODON_TABLE
 from fishlifeqc.boldsearch  import Boldesearch
 from fishlifeqc.t_like import TreeExplore
 from fishlifeqc.bl import BLCorrelations
@@ -35,7 +36,7 @@ Examples:
 
         $ fishlifeqc mdata [exons]
 
-    * vertical trimming by codons: 
+    * Codon aware trimming: 
 
         $ fishlifeqc mdata [exons] --codon_aware
 
@@ -44,54 +45,75 @@ Examples:
               codon, the entire sequence is cut off from the 
               alignment 
 
-    * vertical trimming by triplets and using mitochondrial 
-      vertebrate lib of stop codons: 
+    * Trimming considering mitochondrial vertebrate lib of stop codons: 
 
-        $ fishlifeqc mdata [exons] --codon_aware --mt
+        $ fishlifeqc mdata [exons] --codon_aware --stop_lib 2
 
-    * vertical trimming only:
-
-        $ fishlifeqc mdata [exons] -v
+        note: for a complete list of stop codon libraries run:
+                $ fishlife mdata -p
 """)
 
 missingdata.add_argument('sequences', 
                     metavar='exons',
-                    nargs="+",
+                    nargs="*",
                     type=str,
                     help='''File names with sequences''')
 missingdata.add_argument('-e','--edges', 
                     metavar="",
                     type = float,
-                    default = 0.6,
-                    help='''[Optional] Set the vertical trimming threshold. 
+                    default = 0.1,
+                    help='''[Optional] Maximum allowed gap proportion per column at edges. 
                             Sequence columns at edges with more than 
                             this value are removed [Default: %s]''' % 0.6)
-missingdata.add_argument('-c','--coverage', 
+missingdata.add_argument('-i','--internal', 
+                    metavar="",
+                    type = float,
+                    default = 0.1,
+                    help='''[Optional] Maximum allowed gap proportion per internal column. 
+                            Sequence internal columns with more than 
+                            this value are removed [Default: %s]''' % 0.6)
+missingdata.add_argument('-H','--coverage',
                     metavar="",
                     type = float,
                     default = 0.5,
-                    help='''[Optional] Set the horizontal trimming threshold.
+                    help='''[Optional] Maximum allowed gap proportion per sequence.
                              Sequences with more than this value are 
                              removed [Default: %s]''' % 0.5)
-missingdata.add_argument('-t','--codon_aware',
+missingdata.add_argument('-m','--min_count_prop',
+                    metavar="",
+                    type = float,
+                    default = 0.25,
+                    help='''[Optional] Minimum proportion of sequences per alignments. 
+                            This proportion is multiplied by the total number of unique
+                            sequences from all input sequences in order to get a 
+                            minimum allowed number of sequences per alignment. E.g., if 
+                            this paremeter is set to 0.25 and the total number of unique sequence
+                            is 100, this script will select alignments with more or equal than 25
+                            sequences [Default: %s]''' % 0.25)
+missingdata.add_argument('-c','--codon_aware',
                     action="store_true",
                     help='[Optional] If selected, trimming is done by codons')
-missingdata.add_argument('-m','--mt',
+missingdata.add_argument('-l', '--stop_lib',
+                    metavar = "",
+                    type    = int,
+                    choices = list(range(1, len(list( STOP_CODON_TABLE )) + 1 )),
+                    default = 1,
+                    help    = '[Optional] Stop library [Default = 1]')
+missingdata.add_argument('-p','--print_stop_lib',
                     action="store_true",
-                    help='''[Optional] If `-t` is selected and this option are selected,
-                     the mitochondrial vertebrate lib of stop codonds is used''')
-missingdata.add_argument('-v','--verticaltrim',
-                    action="store_false",
-                    help='[Optional] If selected, only trim at adges is applied')
-missingdata.add_argument('-q', '--quiet',
-                    action='store_true',
-                    help='[Optional] If selected, running messages are suppressed')
+                    help='[Optional] If selected, print stop libraries and exit')
+missingdata.add_argument('-a','--add_deletion',
+                    metavar = "",
+                    default = None,
+                    type    = str,
+                    help    = '''[Optional] File in plain text with a list of 
+                                species to delete on each alignment [default = None]''')
 missingdata.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
                     default = 1,
                     help    = '[Optional] number of cpus [Default = 1]')
-missingdata.add_argument('-o','--out', 
+missingdata.add_argument('-s','--suffix', 
                     metavar="",
                     default = "_trimmed",
                     type= str,
@@ -440,17 +462,28 @@ def main():
 
     if wholeargs.subcommand == "mdata":
         # print(wholeargs)
-        Missingdata(
-                fastas       = wholeargs.sequences, 
-                htrim        = wholeargs.coverage, 
-                vtrim        = wholeargs.edges, 
-                outputsuffix = wholeargs.out, 
-                horizontal   = wholeargs.verticaltrim, # default true
+        init_class = Missingdata(
+                fastas = wholeargs.sequences,
+                htrim  = wholeargs.coverage, 
+                vtrim  = wholeargs.edges, 
+                itrim  = wholeargs.internal,
+                min_count_prop = wholeargs.min_count_prop,
+                custom_deletion_list = wholeargs.add_deletion,
+                outputsuffix = wholeargs.suffix, 
                 codon_aware  = wholeargs.codon_aware, # default false
-                mtlib        = wholeargs.mt, # default true
-                quiet        = wholeargs.quiet,
-                threads      = wholeargs.threads
-            ).run()
+                stop_opt = wholeargs.stop_lib,
+                threads  = wholeargs.threads,
+            )
+
+        if wholeargs.print_stop_lib:
+            init_class.print_stop_lib()
+            exit()
+
+        if not wholeargs.sequences:
+            print(missingdata.format_help())
+            exit()
+
+        init_class.run()
 
     elif wholeargs.subcommand == "rblast":
 

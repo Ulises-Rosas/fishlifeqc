@@ -1,48 +1,115 @@
-from multiprocessing.pool import ApplyResult
 import sys
-import argparse
+import fishlifeseq
 from multiprocessing import Pool
 from fishlifeqc.utils import isfasta
 from fishlifeqc.utils import fas_to_dic
+from fishlifeqc.delete import Deletion
 
-FAILEDTOTRIM = "failed_to_trim.txt"
+FAILEDTOTRIM = "no_passed_trimming.txt"
 
-class Missingdata:
+# source https://github.com/biopython/biopython/blob/master/Bio/Data/CodonTable.py
+STOP_CODON_TABLE = {
+    1:  {'codons': ['TAA', 'TAG', 'TGA'], 'name': 'Standard'},
+    2:  {'codons': ['TAA', 'TAG', 'AGA', 'AGG'], 'name': 'Vertebrate Mitochondrial'},
+    3:  {'codons': ['TAA', 'TAG'], 'name': 'Invertebrate Mitochondrial'},
+    4:  {'codons': ['TAA', 'TAG', 'TGA'], 'name': 'Bacterial, Archaeal and Plant Plastid'},
+    5:  {'codons': ['TAA', 'TAG'], 'name': 'Yeast Mitochondrial'},
+    6:  {'codons': ['TAA', 'TAG'],'name': 'Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate '},
+    7:  {'codons': ['TGA'], 'name': 'Ciliate Nuclear; Dasycladacean Nuclear; Hexamita Nuclear'},
+    8:  {'codons': ['TAA', 'TAG'], 'name': 'Echinoderm Mitochondrial; Flatworm Mitochondrial'},
+    9:  {'codons': ['TAA', 'TAG'], 'name': 'Euplotid Nuclear'},
+    10: {'codons': ['TAA', 'TAG', 'TGA'], 'name': 'Alternative Yeast Nuclear'},
+    11: {'codons': ['TAA', 'TAG'], 'name': 'Ascidian Mitochondrial'},
+    12: {'codons': ['TAG'], 'name': 'Alternative Flatworm Mitochondrial'},
+    13: {'codons': ['TAA', 'TGA'], 'name': 'Blepharisma Macronuclear'},
+    14: {'codons': ['TAA', 'TGA'], 'name': 'Chlorophycean Mitochondrial'},
+    15: {'codons': ['TAA', 'TAG'], 'name': 'Trematode Mitochondrial'},
+    16: {'codons': ['TCA', 'TAA', 'TGA'],'name': 'Scenedesmus obliquus Mitochondrial'},
+    17: {'codons': ['TTA', 'TAA', 'TAG', 'TGA'], 'name': 'Thraustochytrium Mitochondrial'},
+    18: {'codons': ['TAA', 'TAG'], 'name': 'Pterobranchia Mitochondrial'},
+    19: {'codons': ['TAA', 'TAG'],'name': 'Candidate Division SR1 and Gracilibacteria'},
+    20: {'codons': ['TAA', 'TAG', 'TGA'],'name': 'Pachysolen tannophilus Nuclear'},
+    21: {'codons': ['TGA'], 'name': 'Karyorelict Nuclear'},
+    22: {'codons': ['TAA', 'TAG', 'TGA'], 'name': 'Condylostoma Nuclear'},
+    23: {'codons': ['TGA'], 'name': 'Mesodinium Nuclear'},
+    24: {'codons': ['TGA'], 'name': 'Peritrich Nuclear'},
+    25: {'codons': ['TAA', 'TAG'], 'name': 'Blastocrithidia Nuclear'},
+    26: {'codons': ['TAA', 'TGA'], 'name': 'Balanophoraceae Plastid'},
+    27: {'codons': ['TAG'], 'name': 'Cephalodiscidae Mitochondrial'}
+}
+
+class Missingdata(Deletion):
 
     def __init__(self,
                 fastas = None, 
-                htrim = 0.6, 
-                vtrim = 0.5, 
+                htrim = 0.6,  # if not horizontal, just set self.htrim = 1
+                vtrim = 0.1,
+                itrim = 0.1,
+                min_count_prop = 0.25,
+                custom_deletion_list = None,
                 outputsuffix = "_trimmed", 
-                # trimedges   = False,
-                horizontal  = True,
                 codon_aware = False,
-                mtlib       = False,
-                quiet       = False,
+                stop_opt    = 1,
                 threads     = 1):
 
+        # ------ share variables between objs -------
+
+        self.deletion_list = custom_deletion_list # specific list of taxa to delete on each alignment
+        self.customlist    = self._read_deletion_list()
+
+        # ------ share variables between objs -------
+
         self.fasta = fastas
-        self.htrim = htrim
-        self.vtrim = vtrim
+        self.htrim = htrim # maximum gap percentage allowed per sequence
+        self.vtrim = vtrim # maximum gap percentage allowed per columm
+        self.itrim = itrim # maximum gap percentage allowed per internal columm
+        self.min_count_prop = min_count_prop # Minimum proportion of sequences per alignments
+
+        self.min_count = 3 # safe internal default
         self.outputsuffix = outputsuffix
-        self.horizontal   = horizontal
-        # self.removeedges  = trimedges
-        #   |
-        #    -> if removeedges:
+
+
         self.codon_aware  = codon_aware
         #   |
         #    -> if codon_aware:
-        self.mtlib        = mtlib
-        self.threads      = threads
+        self.stop_codon_table = STOP_CODON_TABLE
+        self.stop_opt         = stop_opt
 
+        self.threads = threads
+
+        #  ------- DEPRECATED ------- #
         # stops for mitchondrial DNA
         self.mt_stop_codons=["TAA", "TAG", "AGA", "AGG"]
         # stops for standard genetic code
         self.std_stop_codons=["TAA", "TAG", "TGA"]
+        #  ------- DEPRECATED ------- #
 
-        self.quiet = quiet
-        # placeholder
-        # self.count = 0
+    @property
+    def stop_codons(self):
+        return self.stop_codon_table[self.stop_opt]['codons']
+
+    def print_stop_lib(self):
+        """
+        print table of options
+        for stop_lib
+        """
+        num_opts   = len( list(self.stop_codon_table) )
+        name_span  = max([ len(v['name']) for v in self.stop_codon_table.values() ])
+        codon_span = max([ len(", ".join(v['codons'])) for v in self.stop_codon_table.values() ])
+
+        str_format = "%-7s| %-" + str(name_span) + "s| %-" + str(codon_span)+ "s"
+        print()
+        print( str_format   % ( "Option", "Name", "Codons" )           )
+        print( "%s+-%s+-%s" % ("-"*7, "-"*name_span, "-"*codon_span )  )
+
+        for opt in range(1, num_opts + 1):
+            name      = self.stop_codon_table[opt]['name']
+            codons    = self.stop_codon_table[opt]['codons']
+            condons_f = ", ".join(codons)
+
+            print( str_format % (opt, name, condons_f) )
+
+        print()
 
     def check_aln(self, aln, filename):
         """
@@ -74,17 +141,33 @@ class Missingdata:
         plt.show()
         plt.close()
 
-    def sequencecompleteness(self, aln):
-        # remove those
-        # sequences when
-        # the gap perce is more
-        # than the threshold value
-        seqlength = len(aln[ list(aln)[0] ])
+    def horizontalTrimming(self, aln):
+        """ 
+        Moves:
+
+        1. remove those sequences when
+        the gap proportion is more
+        than the threshold value
+
+        2. Close only-gaps columns
+        by above move
+
+        * If `aln` is empty, returns None
+        """
+        if not aln:
+            return None
+
+        seqlength = Missingdata._seq_length(aln)
+
         out = {}
         for k,v in aln.items():
             if v.count('-')/seqlength <= self.htrim:
                 out.update( {k:v}  )
-        return out
+
+        if not out:
+            return None
+
+        return Missingdata.close_gaps(out, self.codon_aware)
 
     def trimedges(self, aln):
         # remove those
@@ -120,12 +203,7 @@ class Missingdata:
             return None
 
     def is_stop(self, codon):
-
-        if self.mtlib:
-            return codon in self.mt_stop_codons
-        
-        else:
-            return codon in self.std_stop_codons
+        return codon in self.stop_codons
 
     def filter_stopcodons(self, aln):
         """
@@ -158,6 +236,17 @@ class Missingdata:
         return out
         
     def trimedges_codonaware(self, aln):
+        """
+        - If rigth trimming reach left trimming, None is returned
+
+        -  when more than two stop codons are present,
+            `filter_stopcodons` returns an empty dict.
+            Otherwise, it returns `aln` with lengths!
+
+        - if `trimmed`, `self.close_gaps` closes 
+            possible only-gaps columns 
+            produced by `filter_stopcodons`
+        """
         
         headerlength = aln.__len__()
         seqlength = len(aln[ list(aln)[0] ])
@@ -189,13 +278,99 @@ class Missingdata:
                 
         if rgti > lfti:
             trimmed = { k:v[ lfti:rgti ] for k,v in aln.items() }
-             # horizontal trimming (check stop codons)
-            return self.filter_stopcodons(trimmed)
+            """   
+            horizontal trimming (check stop codons).
+            when more than two stop codons are present,
+            `filter_stopcodons` returns an empty dict.
+            Otherwise, it returns `aln` with lengths!
+            """
+            trimmed = self.filter_stopcodons(trimmed)
+            """
+            close possible only-gaps columns
+            produced by `filter_stopcodons`
+            """
+            return Missingdata.close_gaps(aln = trimmed, is_codon_aware= True)
         else:
             return None
 
     @staticmethod
+    def _seq_length(aln:dict)-> int:
+        return len(next(iter(aln.values())))
+
+    @staticmethod
+    def _get_gap_prop(aln: dict, seqlength: int, offset: int)-> dict:
+
+        idxs = []
+        for c in range(0, seqlength, offset):
+
+            mystr = ""
+            for v in aln.values():
+                mystr += v[c:c+offset]
+
+            gap_prop = mystr.count('-')/len(mystr)
+            idxs.append( (c, gap_prop) )
+
+        return idxs
+
+    @staticmethod
+    def _filter(indexes: list, aln: dict, seqlength: int, offset: int) -> dict:
+        """
+        if indexes list is empty, it means
+        there is anything to save because any column
+        pass the maximun allowed proportion condition.
+
+        then, return None
+        """
+
+        if not indexes:
+            return None
+
+        out = {}
+        for k,v in aln.items():
+            mystr  = ""
+            for c in range(0, seqlength, offset):
+                if c in indexes:
+                    mystr += v[c:c+offset]
+            out[k] = mystr
+
+        seqlength = Missingdata._seq_length(out)
+
+        if not seqlength:
+            return None
+
+        return out
+
+    @staticmethod
+    def internal_trimmer(aln: dict, is_codon_aware: bool = False, allowed_gap_prop: float = 0.1) -> dict:
+        # aln = {'a':'---cat-aa', 'b':'---cataaa', 'c':'---cataaa'}
+        """
+        * If `aln` is empty, returns None
+
+        * If not seqlength after processing, None is returned
+        """
+
+        if not aln:
+            return None
+
+        offset   = 3 if is_codon_aware else 1
+        # seqlength = len( list( aln.values() )[0] )
+        seqlength = Missingdata._seq_length(aln)
+
+        idxs = []
+        idxs_prop = Missingdata._get_gap_prop(aln, seqlength, offset)
+        for c, gap_prop in idxs_prop:
+            if gap_prop <= allowed_gap_prop:
+                idxs.append(c)
+
+        return Missingdata._filter(idxs, aln, seqlength, offset)
+
+    @staticmethod
     def convertN2Gap(aln: dict) -> dict:
+        """
+        `Missingdata.convertN2Gap` is used as
+        both aligner and `self.filter_stopcodons` add "N"s.
+        Used once if called from other module (e.g.,`monophyly.py`)
+        """
 
         for k,v in aln.items():
             aln[k] = v.replace("N", "-")
@@ -205,44 +380,37 @@ class Missingdata:
     @staticmethod
     def close_gaps(aln: dict, is_codon_aware: bool = True) -> dict:
         """
-        It closes the empty columns formed by 
-        `self.sequencecompleteness` function
+        Moves:
+        1. It converts N to gaps
+        2. get proportions
+        3. filter
 
-        `Missingdata.convertN2Gap` is used
-        both aligner and `self.filter_stopcodons` add "N"s.
-        Used once if called from other module (e.g.,`monophyly.py`)
+        It closes the empty columns formed by:
+        - `self.filter_stopcodons`
+        - `self.horizontalTrimming`
+
+        * If `aln` is empty, returns None
+        * If `aln` is not empty, `aln` has values with length
+        * If not seqlength after processing, None is returned
         """
         # aln = {'a':'---cat--a', 'b':'---cat--a'}
         # is_codon_aware = not True
-        aln = Missingdata.convertN2Gap(aln)
-
-        offset = 3 if is_codon_aware else 1
-        seqlength = len( list( aln.values() )[0] )
+        if not aln:
+            return None
+            
+        offset    = 3 if is_codon_aware else 1
+        aln       = Missingdata.convertN2Gap(aln = aln)
+        seqlength = Missingdata._seq_length(aln)
 
         idxs = []
-        for c in range(0, seqlength, offset):
-            mystr = ""
+        idxs_prop = Missingdata._get_gap_prop(aln, seqlength, offset)
 
-            for k,v in aln.items():
-                mystr += v[c:c+offset]
-
-            is_allgap = 1 == mystr.count('-')/len(mystr)
-
-            if not is_allgap:
+        for c, gap_prop in idxs_prop:
+            if not gap_prop == 1:
                 idxs.append(c)
 
-        out = {}
-        for k,v in aln.items():
-            mystr  = ""
-
-            for c in range(0, seqlength, offset):
-                if c in idxs:
-                    mystr += v[c:c+offset]
-
-            out[k] = mystr
-            
-        return out   
-    
+        return Missingdata._filter(idxs, aln, seqlength, offset)
+        
     def writeresults(self, obj, name):
 
         outname = name + self.outputsuffix
@@ -252,10 +420,56 @@ class Missingdata:
             for k,v in obj.items():
                 f.write( "%s\n%s\n" % (k,v))
 
+    def verticalTrimming(self, aln: dict) -> dict:
+        """
+        Moves:
+        1. Trim edges (None if all is removed)
+        2. Trim internal (None if all is removed)
+
+        returns either None or a filled dict
+        """
+        if not aln:
+            return None
+
+        if not self.codon_aware:
+            # vertical trim, length change
+            trimmed = self.trimedges(aln = aln)
+        else:
+            # vertical trim, length change &
+            # horizontal trimming (check stop codons)
+            trimmed = self.trimedges_codonaware(aln = aln)
+
+        # None or filled dict
+        trimmed = Missingdata.internal_trimmer(
+                                    aln              = trimmed,
+                                    is_codon_aware   = self.codon_aware,
+                                    allowed_gap_prop = self.itrim)
+        return trimmed
+    
     def trimiterator(self, fasta):
         """
         Main trimmer
         ============
+
+        Moves:
+
+        1. Trimming by sequence count
+            and custom list of taxa:
+            minimum sequence count 
+            per sequence is setted at
+            25% of the number of all entered
+            sequences by default and the 
+            custom list is optional 
+            (i.e., default is None)
+
+        2. vertical trimming:
+            - edges (codon aware)
+            - internal colums
+
+        3. horizontal trimming:
+            Looking for individual 
+            sequences with high proportion
+            of gaps
 
         Sequences are pre-processed by
         converting N to "-" due to some aligners
@@ -265,42 +479,36 @@ class Missingdata:
         a base to any surrounding codons.
         """
 
-        # fasta = self.fasta[0]
+
+        sys.stderr.write("Trimming: %s\n" % fasta )
+        sys.stderr.flush()
+
+        # fasta = self.fasta[2]
         if not isfasta(fasta):
             return None
 
         alignment = fas_to_dic(fasta)
-        alignment = Missingdata.convertN2Gap(alignment)
+        alignment = self.convertN2Gap(alignment)
         seqlength = self.check_aln(alignment, fasta)
 
         if not seqlength:
             return None
 
-        # TODO: delete extreme cases in sequence length 
+        # trim by count and a custom list
+        trimmed = self.customCountTrimming(alignment, self.min_count, self.customlist)
+        # if not trimmed:
+        #     return None
 
-        if not self.codon_aware:
-            # vertical trim, length change
-            trimmed = self.trimedges(aln = alignment)
-        else:
-            # vertical trim, length change &
-            # horizontal trimming (check stop codons)
-            trimmed = self.trimedges_codonaware(aln = alignment)
+        # close possible only-gaps columns
+        # produced by `customCountTrimming` 
+        # (i.e., only-gap columns supported only by 
+        #        sequences belonging to `self.customlist`)
+        trimmed = self.close_gaps(aln = trimmed, is_codon_aware =  self.codon_aware)
 
-        if self.horizontal:
-            # horizontal trim, not length change
-            trimmed = self.sequencecompleteness(aln = trimmed)
-        
-        if trimmed:
-            # close the gaps
-            trimmed = self.close_gaps(trimmed, self.codon_aware)
+        trimmed = self.verticalTrimming(aln = trimmed)
 
-        if not self.quiet:
-            # self.count += 1
-            # totallength = len(self.fasta)
-            # # glob_count += 1
-            # print(self.count)
-            sys.stderr.write("Processed: %s\n" % fasta )
-            sys.stderr.flush()
+        # horizontal trim, not length change
+        trimmed = self.horizontalTrimming(aln = trimmed)
 
         if trimmed:
             self.writeresults(trimmed, fasta)
@@ -308,8 +516,42 @@ class Missingdata:
         else:
             return None
 
+    def _update_min_counts(self, all_headers):
+        """
+        set the minimum amount of sequences
+        that each alignment must have
+        this minimum values obtained after
+        get the total number  from all alignments used as
+        input
+        """
+        headers_f = list( filter(None, all_headers) )
+
+        if not headers_f:
+            return None
+
+        headers_f_joined = []
+        for h in headers_f:
+            headers_f_joined.extend(h)
+        
+        headers_uniq   = set(headers_f_joined)
+
+        self.min_count = int( len(headers_uniq) * self.min_count_prop )
+
     def run(self):
+
         with Pool(processes = self.threads) as p:
+
+            if self.min_count_prop:
+                sys.stderr.write("\nMapping taxa...\r")
+                sys.stderr.flush()
+
+                all_headers = [*p.map(fishlifeseq.headers, self.fasta)]
+                self._update_min_counts(all_headers)
+
+                sys.stderr.write("Mapping taxa...Ok\n\n")
+                sys.stderr.flush()
+
+
             passed = [*p.map(self.trimiterator, self.fasta)]
 
         failed = set(self.fasta) - set(list(filter(None, passed)))
@@ -318,3 +560,27 @@ class Missingdata:
             with open(FAILEDTOTRIM, 'w') as f:
                 for i in failed:
                     f.write( "%s\n" % i)
+
+# --- testings -- #
+# import glob
+# fastas = glob.glob("/Users/ulises/Desktop/test/mdata/*.fasta")
+# fastas = [
+#     '/Users/ulises/Desktop/test/mdata/E1532.fasta',
+#     '/Users/ulises/Desktop/test/mdata/E0219.fasta',
+#     '/Users/ulises/Desktop/test/mdata/E1078.fasta'
+#  ]
+# # # fishlifeseq.headers(fastas[0])
+# custom_deletion_list = "/Users/ulises/Desktop/test/mdata/custom_deletion_list.txt"
+# self = Missingdata(
+#     custom_deletion_list=custom_deletion_list,
+#     fastas=fastas,
+#     outputsuffix = "_trimmed.fasta",
+#     itrim= 0.6,
+#     vtrim= 0.5,
+#     min_count_prop=0.25,
+#     codon_aware=True,
+#     threads= 3
+# )
+# self.print_stop_lib()
+# print(self.min_count)
+# -- testings -- #
