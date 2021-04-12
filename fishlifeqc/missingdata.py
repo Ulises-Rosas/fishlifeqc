@@ -7,7 +7,7 @@ from fishlifeqc.utils import isfasta, fas_to_dic, compare_alns
 from fishlifeqc.delete import Deletion
 
 FAILEDTOTRIM = "no_passed_trimming.txt"
-MDATA_REPORT = "mdata_report.txt"
+MDATA_REPORT = "mdata_report.csv"
 
 # source https://github.com/biopython/biopython/blob/master/Bio/Data/CodonTable.py
 STOP_CODON_TABLE = {
