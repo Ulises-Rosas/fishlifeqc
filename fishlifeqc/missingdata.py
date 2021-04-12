@@ -1,11 +1,13 @@
+import os
+import csv
 import sys
 import fishlifeseq
 from multiprocessing import Pool
-from fishlifeqc.utils import isfasta
-from fishlifeqc.utils import fas_to_dic
+from fishlifeqc.utils import isfasta, fas_to_dic, compare_alns
 from fishlifeqc.delete import Deletion
 
 FAILEDTOTRIM = "no_passed_trimming.txt"
+MDATA_REPORT = "mdata_report.txt"
 
 # source https://github.com/biopython/biopython/blob/master/Bio/Data/CodonTable.py
 STOP_CODON_TABLE = {
@@ -65,7 +67,7 @@ class Missingdata(Deletion):
         self.itrim = itrim # maximum gap percentage allowed per internal columm
         self.min_count_prop = min_count_prop # Minimum proportion of sequences per alignments
 
-        self.min_count = 3 # safe internal default
+        self.min_count = 4 # safe internal default
         self.outputsuffix = outputsuffix
 
 
@@ -512,7 +514,9 @@ class Missingdata(Deletion):
 
         if trimmed:
             self.writeresults(trimmed, fasta)
-            return fasta
+            desc = compare_alns(alignment, trimmed)
+
+            return (fasta, desc)
         else:
             return None
 
@@ -537,6 +541,53 @@ class Missingdata(Deletion):
 
         self.min_count = int( len(headers_uniq) * self.min_count_prop )
 
+    def _write_report(self, table, failed):
+        # table = descriptions
+        table_f = list(filter(None, table))
+
+        if not table_f:
+            sys.stderr.write("\nAny alignment passed trimming steps\n")
+            sys.stderr.flush()
+            return None
+
+        exons_before = len(self.fasta)
+        exons_after  = exons_before - len(failed)
+   
+        site_before = 0
+        gaps_before = 0
+        headers_before = 0
+
+        site_after = 0
+        gaps_after = 0
+        headers_after = 0 
+
+        for line in table_f:
+            site_before += line[0]
+            gaps_before += line[1]
+            headers_before += line[2]
+
+            site_after += line[3]
+            gaps_after += line[4]
+            headers_after += line[5]
+
+        exon_perc    = round(exons_after*100/exons_before, 2)
+        sites_perc   = round(site_after*100/site_before, 2)
+        gaps_perc    = round(gaps_after*100/gaps_before, 2)
+        headers_perc = round(headers_after*100/headers_before, 2)
+
+        out  = [[ 'description', 'before',       'after',        'percentage'],
+                [ 'alignments' , exons_before,   exons_after,    exon_perc   ],
+                [ 'sites'      , site_before,    site_after,     sites_perc  ],
+                [ 'gaps'       , gaps_before,    gaps_after,     gaps_perc   ],
+                [ 'headers'    , headers_before, headers_after,  headers_perc]]
+
+        with open( MDATA_REPORT, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerows( out )
+
+        sys.stderr.write("\nReport written at %s\n" % MDATA_REPORT)
+        sys.stderr.flush()
+
     def run(self):
 
         with Pool(processes = self.threads) as p:
@@ -551,8 +602,15 @@ class Missingdata(Deletion):
                 sys.stderr.write("Mapping taxa...Ok\n\n")
                 sys.stderr.flush()
 
+            descriptions = []
+            passed       = []
 
-            passed = [*p.map(self.trimiterator, self.fasta)]
+            for fasta in self.fasta:
+                preout = p.map_async(self.trimiterator, (fasta,)).get()[0]
+                if preout:
+                    fasta, desc = preout
+                    passed.append(fasta)
+                    descriptions.append(desc)
 
         failed = set(self.fasta) - set(list(filter(None, passed)))
 
@@ -560,6 +618,8 @@ class Missingdata(Deletion):
             with open(FAILEDTOTRIM, 'w') as f:
                 for i in failed:
                     f.write( "%s\n" % i)
+
+        self._write_report(descriptions, failed)
 
 # --- testings -- #
 # import glob

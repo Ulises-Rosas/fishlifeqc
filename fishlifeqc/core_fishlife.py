@@ -50,7 +50,7 @@ Examples:
         $ fishlifeqc mdata [exons] --codon_aware --stop_lib 2
 
         note: for a complete list of stop codon libraries run:
-                $ fishlife mdata -p
+              $ fishlifeqc mdata -p
 """)
 
 missingdata.add_argument('sequences', 

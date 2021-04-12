@@ -4,8 +4,6 @@ import os
 import re
 import sys
 import subprocess
-import xml.etree.ElementTree as ET
-
 # import matplotlib.pyplot as plt
 
 def runshell(args, type = ""):
@@ -140,6 +138,24 @@ def export_fasta(aln: dict, outname: str):
     with open(outname, 'w') as f:
         for k,v in aln.items():
             f.write( "%s\n%s\n" % (k,v))
+
+def _seq_length(aln:dict)-> int:
+    return len(next(iter(aln.values())))
+
+def compare_alns(aln1: dict, aln2: dict) -> list:
+    # aln1 = {'a':'---cat-aa', 'b':'---cataaa', 'c':'---cataaa'}
+    # aln2 = {'a':'cat-aa', 'b':'cataaa', 'c':'cataaa'}
+    aln1_len = _seq_length(aln1)
+    aln2_len = _seq_length(aln2)
+
+    aln1_gap =  sum([ v.count("-") for v in aln1.values() ])
+    aln2_gap =  sum([ v.count("-") for v in aln2.values() ])
+
+    aln1_nheaders = len(list(aln1))
+    aln2_nheaders = len(list(aln2))
+
+    return [ aln1_len, aln1_gap, aln1_nheaders,
+             aln2_len, aln2_gap, aln2_nheaders  ]
 
 # def plotcounts(by, outliers, identity, first = 20):
 
