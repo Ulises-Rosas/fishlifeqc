@@ -15,7 +15,7 @@ Get the development version:
 
 ```Bash
 git clone https://github.com/Ulises-Rosas/fishlifeqc.git && cd fishlifeqc
-pip install .
+python3 -m pip install .
 ```
 
 ## Usage
