@@ -422,6 +422,10 @@ class BLCorrelations:
         )
 
     def __iter_raxml__(self, seq_pruned):
+        """
+        Failed is a list of lists: [[a], [b], [c], ...].
+        It makes an easy export at bl.py command
+        """
 
         raxml_failed = []
         cons_trees   = []
@@ -467,7 +471,7 @@ class BLCorrelations:
                         suffix  = suffix,
                         threads = self.threads,
                         runs    = self.iterations).strip()
-
+            # print(cmd)
             runshell( (cmd.split(), seq + ".stdout"), type = "stdout" )
 
             self.__remove_raxmlfs__(seq, seq_basename)
