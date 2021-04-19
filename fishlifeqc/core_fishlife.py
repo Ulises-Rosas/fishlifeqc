@@ -2,13 +2,12 @@
 
 # import sys
 import argparse
-from typing import List
 from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata, STOP_CODON_TABLE
 from fishlifeqc.boldsearch  import Boldesearch
-from fishlifeqc.t_like import TreeExplore
-from fishlifeqc.bl import BLCorrelations
-# from fishlifeqc.genetrees   import Raxml
+from fishlifeqc.t_like      import TreeExplore
+from fishlifeqc.bl          import BLCorrelations
+from fishlifeqc.monophyly   import Monophyly
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
 PB_THRESOLD         = 95.0
@@ -136,7 +135,6 @@ Furthermore, a new file is created with sequences without
 mismatches and any gaps produced by sequence elimination are 
 also closed
 
-
 Example:
 
     * Reciprocal blastn with a threshold of 99.9%:
@@ -171,16 +169,7 @@ Example:
 
 """.format(PB_OUTPUTFILENAME))
 
-pairedblast.add_argument('sequences', 
-                    metavar='exons',
-                    nargs="+",
-                    type=str,
-                    help='File names with sequences. If these are aligned, an unalignment process is performed')
-pairedblast.add_argument('-t','--taxonomy',
-                    metavar="",
-                    default = None,
-                    required= True,
-                    help='Taxonomy file. Format in csv: "[sequence name],[group]"')
+
 pairedblast.add_argument('-i','--identity', 
                     metavar="",
                     type = float,
@@ -199,6 +188,22 @@ pairedblast.add_argument('-o','--out',
                     default = PB_OUTPUTFILENAME,
                     type= str,
                     help='[Optional] output file [Default: %s]' % PB_OUTPUTFILENAME)
+
+pairedblast_required = pairedblast.add_argument_group('required arguments')
+pairedblast_required.add_argument('-t','--taxonomy',
+                    metavar="",
+                    default = None,
+                    required= True,
+                    help='Taxonomy file. Format in csv: "[sequence name],[group]"')
+
+pairedblast_positional = pairedblast.add_argument_group('positional arguments')
+pairedblast_positional.add_argument('sequences', 
+                    metavar='exons',
+                    nargs="+",
+                    type=str,
+                    help='File names with sequences. If these are aligned, an unalignment process is performed')
+pairedblast._action_groups.reverse()
+
 # pairedblast ------------------------------------------------------
 
 # bold search ------------------------------------------------------
@@ -210,9 +215,8 @@ boldsearch = subparsers.add_parser('bold',
 
                 Wrapper of both BOLD and NCBI APIs for species identifications
                                     from DNA sequences
-- Hosts:
+- Host:
     BOLD: http://www.boldsystems.org/index.php/Ids_xml
-    NCBI: https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi
 
 Example:
 
@@ -227,17 +231,7 @@ Example:
              ...                 ...                    
 
 """)
-boldsearch.add_argument('sequence', 
-                        metavar='',
-                        type=str,
-                        help='''File name with the COI sequences. 
-                                If these are aligned, an 
-                                unalignment process is performed''')
-boldsearch.add_argument('-t','--taxonomy',
-                        metavar="",
-                        default = None,
-                        required= True,
-                        help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+
 boldsearch.add_argument('-v','--threshold',
                         type = float,
                         metavar="",
@@ -255,9 +249,9 @@ boldsearch.add_argument('-b','--bold_db',
                                 COX1_SPECIES_PUBLIC,
                                 COX1_L640bp
                                 [Default = %s]''' % BS_BOLD_DB )
-boldsearch.add_argument('-n','--ncbi',
-                        action='store_true',
-                        help=' If selected, BLASTn is used to identify species')
+# boldsearch.add_argument('-n','--ncbi',
+#                         action='store_true',
+#                         help=' If selected, BLASTn is used to identify species')
 boldsearch.add_argument('-k','--keep',
                         action='store_false',
                         help=' If selected, intermideate files are kept')
@@ -270,11 +264,26 @@ boldsearch.add_argument('-o','--out',
                         default=None,
                         action='store',
                         help='Output name [Default = `sequence` + _bold ]' )
+
+bold_required = boldsearch.add_argument_group('required arguments')
+bold_required.add_argument('-t','--taxonomy',
+                        metavar="file",
+                        default = None,
+                        required= True,
+                        help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+
+bold_positional = boldsearch.add_argument_group('positional arguments')
+bold_positional.add_argument('sequence', 
+                        metavar='COI file',
+                        type=str,
+                        help='''File name with the COI sequences. 
+                                If these are aligned, an 
+                                unalignment process is performed''')
+boldsearch._action_groups.reverse()
 # bold search ------------------------------------------------------
 
 
 # tlike ------------------------------------------------------
-
 tlike = subparsers.add_parser('tlike',
                                     help = "Find T-like clades in trees",
                                     formatter_class = argparse.RawDescriptionHelpFormatter, 
@@ -342,40 +351,11 @@ Examples:
             for rooting gene trees. For example, if any tip of priority '0' is found
             at a gene tree, it is chosen tips of priority '1' to root the gene tree.
 """)
-tlike.add_argument('treefiles',
-                    nargs="+",
-                    help='Filenames')
-tlike.add_argument('-t','--taxonomyfile',
-                    metavar="",
-                    type= str,
-                    help='Taxonomy file [Default: None]') 
-tlike.add_argument('-g','--outgroup',
-                    metavar="",
-                    type= str,
-                    help='[Optional] Outgroup taxa [Default: None]')
 tlike.add_argument('-f','--format',
                     metavar="",
                     type= str,
                     default= "newick",
                     help='[Optional] Tree format [Default: newick]') 
-tlike.add_argument('-l','--coll_bylen',
-                    action="store_true",
-                    help='''[Optional] If selected, collapse internal branches by length''')
-tlike.add_argument('-u','--ucoll_bysupp',
-                    action="store_false",
-                    help='''[Optional] If selected, internal branches are not collapsed by support value''')
-tlike.add_argument('-L', '--min_len',
-                    metavar = "",
-                    type    = float,
-                    default = 0.000001,
-                    help    = '''[Optional] minimun branch length to collapse 
-                    internal branch. This value is also used to 
-                    define T-like clades [Default: 0.000001]''')
-tlike.add_argument('-S', '--min_supp',
-                    metavar = "",
-                    type    = float,
-                    default = 0,
-                    help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
 tlike.add_argument('-o','--outfile',
                     metavar="",
                     type= str,
@@ -388,13 +368,48 @@ tlike.add_argument('-n', '--threads',
                     help    = '[Optional] number of cpus [Default: 1]')   
 
 
-# bl ------------------------------------------------------
+tlike_tree_mod = tlike.add_argument_group('modification of input trees')
+tlike_tree_mod.add_argument('-g','--outgroup',
+                    metavar="",
+                    type= str,
+                    help='[Optional] Outgroup taxa [Default: None]')
+tlike_tree_mod.add_argument('-l','--coll_bylen',
+                    action="store_true",
+                    help='''[Optional] If selected, collapse internal branches by length''')
+tlike_tree_mod.add_argument('-u','--ucoll_bysupp',
+                    action="store_false",
+                    help='''[Optional] If selected, internal branches are not collapsed by support value''')
+tlike_tree_mod.add_argument('-L', '--min_len',
+                    metavar = "",
+                    type    = float,
+                    default = 0.000001,
+                    help    = '''[Optional] minimun branch length to collapse 
+                    internal branch. This value is also used to 
+                    define T-like clades [Default: 0.000001]''')
+tlike_tree_mod.add_argument('-S', '--min_supp',
+                    metavar = "",
+                    type    = float,
+                    default = 0,
+                    help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
 
+tlike_required = tlike.add_argument_group('required arguments')
+tlike_required.add_argument('-t','--taxonomyfile',
+                    metavar="",
+                    type= str,
+                    help='Taxonomy file') 
+
+tlike_positional = tlike.add_argument_group('positional arguments')
+tlike_positional.add_argument('treefiles',
+                    nargs="+",
+                    help='Filenames')
+
+tlike._action_groups.reverse()
+
+# bl ------------------------------------------------------
 bl = subparsers.add_parser('bl',
                             help = "Branch length ratios and correlations",
                             formatter_class = argparse.RawDescriptionHelpFormatter, 
                             description="""
-
 
                 Branch length rations and pearson correlations
 
@@ -404,47 +419,19 @@ trees with a pruned reference tree.
 Branch length ratios compares terminal branch lenghts. 
 Pearson correlation uses branch lengths from root to tips.
 
-
 Example:
 
-    * Standar usage:
+    * Standard usage:
 
         $ fishlifeqc bl [sequences] -t [reference tree]
+
+    * Codon aware running:
+
+        $ fishlifeqc bl [sequences] -t [reference tree] -c 
+
+
 """)
 
-bl.add_argument('sequences',
-                nargs="+",
-                type=str,
-                help='Filenames')
-bl.add_argument('-t','--reference',
-                metavar="n",
-                type= str,
-                default=None,
-                required= True,
-                help='Reference tree in newick format [Default: None]')
-bl.add_argument('-r', '--max_ratio',
-                 metavar = "",
-                 type    = float,
-                 default = 5.0,
-                 help    = '[Optional] Constrained/pruned tree maximum ratio allowed [Default: 5]')
-bl.add_argument('-p', '--min_pearson',
-                 metavar = "",
-                 type    = float,
-                 default = 0.5,
-                 help    = '[Optional] Minimum pearson correlation allowed [Default: 0.5]')
-bl.add_argument('-e','--evomol',
-                 metavar="",
-                 type= str,
-                 default = 'GTRGAMMA',
-                 help='[Optional] RAxML evol. model for constrained tree inference [Default: GTRGAMMA]')
-bl.add_argument('-c','--codon_aware',
-                 action="store_true",
-                 help='[Optional] If selected, codon partition file is added')
-bl.add_argument('-i', '--iterations',
-                metavar = "",
-                type    = int,
-                default = 1,
-                help    = '[Optional] Number of iterations for MLEs [Default: 1]')
 bl.add_argument('-f','--prefix',
                 metavar="",
                 type= str,
@@ -455,6 +442,176 @@ bl.add_argument('-n', '--threads',
                 type    = int,
                 default = 1,
                 help    = '[Optional] number of cpus [Default: 1]')
+
+bl_raxml = bl.add_argument_group('RAxML constrained tree parameters')
+bl_raxml.add_argument('-e','--evomol',
+                 metavar="",
+                 type= str,
+                 default = 'GTRGAMMA',
+                 help='[Optional] RAxML evol. model for constrained tree inference [Default: GTRGAMMA]')
+bl_raxml.add_argument('-c','--codon_aware',
+                 action="store_true",
+                 help='[Optional] If selected, codon partition file is added')
+bl_raxml.add_argument('-i', '--iterations',
+                metavar = "",
+                type    = int,
+                default = 1,
+                help    = '[Optional] Number of iterations for MLEs [Default: 1]')
+
+bl_corr = bl.add_argument_group('correlation thresholds')
+bl_corr.add_argument('-r', '--max_ratio',
+                 metavar = "",
+                 type    = float,
+                 default = 5.0,
+                 help    = '[Optional] Constrained/pruned tree maximum ratio allowed [Default: 5]')
+bl_corr.add_argument('-p', '--min_pearson',
+                 metavar = "",
+                 type    = float,
+                 default = 0.5,
+                 help    = '[Optional] Minimum pearson correlation allowed [Default: 0.5]')
+
+bl_required = bl.add_argument_group('required arguments')
+bl_required.add_argument('-t','--reference',
+                metavar="tree",
+                type= str,
+                default=None,
+                required= True,
+                help='Reference tree file in newick format [Default: None]')
+
+bl_positional = bl.add_argument_group('positional arguments')
+bl_positional.add_argument('sequences',
+                nargs="+",
+                type=str,
+                help='Filenames')
+
+bl._action_groups.reverse()
+# bl ------------------------------------------------------
+
+
+# para ------------------------------------------------------
+para = subparsers.add_parser('para',
+                            help = "Test paraphyly with AU tests",
+                            formatter_class = argparse.RawDescriptionHelpFormatter, 
+                            description="""
+
+                AU test on paraphyletic groups
+
+This command is designed to statiscially test (i.e., AU-test) the presence of a paraphyletic
+group in a gene tree. If AU-test accept the alternative hypothesis (forced monophyly, see below),
+it means the paraphyly statistically affect the topology of the whole gene tree.
+
+Two hypothesis are tested: i) orignal tree (null) and ii) a constrained tree (alternative). 
+The constrained tree is constructed by forcing the monophyly of a given paraphyletic
+group on each gene tree. This given paraphyletic group is the most frequent group from 
+the wholedataset. If a gene tree does not have this paraphyletic group, the second most 
+frequent is used, and so on. 
+
+Other options for selecting a paraphyletic group inside a gene tree are also available 
+(see below options)
+
+Example:
+
+    * Standard usage:
+
+        $ fishlifeqc para -A .fasta -T .tree  -t [taxonomy file]
+        
+            Where '-A' and '-T' indicate file extensions for alignments and 
+            trees, correspondingly.
+
+            Taxonomy file is CSV-formated and must contain the following
+            struncture:
+
+                # names       groups               
+                [tip name 1],[group of tip name 1]
+                [tip name 2],[group of tip name 2]
+                [tip name 3],[group of tip name 3]
+                ...          ...
+
+    * Codon aware running:
+
+        $ fishlifeqc para -t [taxonomy file] -c
+
+""")
+para.add_argument('-f','--forceall',
+                   action="store_true",
+                   help='''[Optional] If selected, force monophyly 
+                            of all paraphyletic groups in a gene tree''')
+para.add_argument('-g', '--test_group',
+                metavar = "",
+                type    = str,
+                default = None,
+                help    = '''[Optional] Group to force monophyly. If this group is not 
+                            present in a given gene tree, this gene tree is skipped from 
+                            analyses [Default: None]''')
+para.add_argument('-n', '--threads',
+                metavar = "",
+                type    = int,
+                default = 1,
+                help    = '[Optional] number of cpus [Default: 1]')
+
+
+para_raxml = para.add_argument_group('RAxML constrained tree parameters')
+para_raxml.add_argument('-e','--evomol',
+                 metavar="",
+                 type= str,
+                 default = 'GTRGAMMA',
+                 help='[Optional] RAxML evol. model for constrained tree inference [Default: GTRGAMMA]')
+para_raxml.add_argument('-c','--codon_aware',
+                 action="store_true",
+                 help='[Optional] If selected, codon partition file is added')
+para_raxml.add_argument('-i', '--iterations',
+                metavar = "",
+                type    = int,
+                default = 1,
+                help    = '[Optional] Number of iterations for MLEs [Default: 1]')
+
+
+para_tree_mod = para.add_argument_group('modification of input trees')
+para_tree_mod.add_argument('-l','--coll_bylen',
+                    action="store_true",
+                    help='''[Optional] If selected, collapse internal branches by length''')
+para_tree_mod.add_argument('-L', '--min_len',
+                    metavar = "",
+                    type    = float,
+                    default = 0.000001,
+                    help    = '''[Optional] minimun branch length to collapse 
+                    internal branch. This value is also used to 
+                    define T-like clades [Default: 0.000001]''')
+para_tree_mod.add_argument('-u','--ucoll_bysupp',
+                    action="store_false",
+                    help='''[Optional] If selected, internal branches are not collapsed by support value''')
+para_tree_mod.add_argument('-S', '--min_supp',
+                    metavar = "",
+                    type    = float,
+                    default = 0,
+                    help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
+
+para_required = para.add_argument_group('input files')
+para_required.add_argument('-p','--path',
+                    metavar="",
+                    type= str,
+                    default=".",
+                    help="Directory with trees and alignments [Default = '.']") 
+para_required.add_argument('-A','--aln_ext',
+                    metavar="",
+                    type= str,
+                    default=".fasta",
+                    # required = True,
+                    help="Alignment file extension [Default = '.fasta']") 
+para_required.add_argument('-T','--tree_ext',
+                    metavar="",
+                    type= str,
+                    default=".tree",
+                    # required = True,
+                    help="Tree file extension [Default = '.tree']") 
+para_required.add_argument('-t','--taxonomyfile',
+                    metavar="",
+                    type= str,
+                    required = True, 
+                    help='Taxonomy file')
+
+para._action_groups.reverse()
+# para ------------------------------------------------------
 
 def main():
 
@@ -500,7 +657,7 @@ def main():
         Boldesearch(
             sequence           = wholeargs.sequence,
             bolddatabase       = wholeargs.bold_db,
-            make_blast         = wholeargs.ncbi,
+            make_blast         = False, # wholeargs.ncbi, (API DEPRECATED)
             quiet              = wholeargs.quiet,
             taxonomyfile       = wholeargs.taxonomy,
             removeintermediate = wholeargs.keep,
@@ -540,17 +697,25 @@ def main():
             threads           = wholeargs.threads
         ).BrLengths()
 
-    # elif wholeargs.subcommand == "raxmltree":
-    #     # print(wholeargs) 
-    #     Raxml(
-    #         alignments     = wholeargs.exonfiles,
-    #         concatenate    = wholeargs.concatenate, # false
-    #         name_concate   = wholeargs.matrixname,
-    #         evomodel       = wholeargs.model,
-    #         bootstrap      = wholeargs.bootstrap,
-    #         threads        = wholeargs.threads,
-    #         raxml_failures = wholeargs.raxmlfailures,
-    #     ).run()
+    elif wholeargs.subcommand == 'para':
+
+        Monophyly(
+            path            = wholeargs.path,
+            fasta_extension = wholeargs.aln_ext,
+            tree_extension  = wholeargs.tree_ext,
+            taxonomyfile    = wholeargs.taxonomyfile,
+            
+            collapsebylen   = wholeargs.coll_bylen,   # for collapse
+            minlen          = wholeargs.min_len,      # for collapse
+            collpasebysupp  = wholeargs.ucoll_bysupp, # for collapse
+            minsupp         = wholeargs.min_supp,     # for collapse
+            force_all       = wholeargs.forceall,   # if True, it will force mono to ALL para
+            tgroup          = wholeargs.test_group, # target group
+            evomodel        = wholeargs.evomol,
+            codon_partition = wholeargs.codon_aware,
+            iterations      = wholeargs.iterations,
+            threads         = wholeargs.threads
+        ).run()
 
 if __name__ == "__main__":
     main()
