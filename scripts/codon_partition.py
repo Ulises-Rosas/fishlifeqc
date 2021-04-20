@@ -14,6 +14,9 @@ def getOpts():
 	* Example:
 
 	    $ codon_partition.py [exon files]
+            
+            note: partition file name will have the same
+                  as the entered alignment + ".nex" extension
 """,
                                      epilog="")
     parser.add_argument('filenames',
