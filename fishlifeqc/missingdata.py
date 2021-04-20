@@ -605,10 +605,22 @@ class Missingdata(Deletion):
             descriptions = []
             passed       = []
 
+            # for fasta in self.fasta:
+            #     preout = p.map_async(self.trimiterator, (fasta,)).get()[0]
+            #     if preout:
+            #         fasta, desc = preout
+            #         passed.append(fasta)
+            #         descriptions.append(desc)
+
+            preout = []
             for fasta in self.fasta:
-                preout = p.map_async(self.trimiterator, (fasta,)).get()[0]
-                if preout:
-                    fasta, desc = preout
+                result  = p.map_async(self.trimiterator, (fasta,))
+                preout.append(result)
+
+            for p in preout:
+                gotit = p.get()[0]
+                if gotit:
+                    fasta, desc = gotit
                     passed.append(fasta)
                     descriptions.append(desc)
 
