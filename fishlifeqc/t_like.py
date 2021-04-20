@@ -307,7 +307,9 @@ class TreeExplore:
     def __recursive_mono__(self, 
                            tree = None,
                            clade = None, 
-                           tax_map = None):
+                           tax_map = None,
+                           skip_taxa = None
+                           ):
 
         # t_clade_node = t_clade_node
         # tree         = tree
@@ -319,7 +321,7 @@ class TreeExplore:
         for taxon in clade:
             # taxon
             tmp_node = tree.mrca(taxon_labels=[taxon])
-            _is_mono = self._t_node_is_mono(tmp_node, tax_map)
+            _is_mono = self._t_node_is_mono(tmp_node, tax_map, skip_taxa)
 
             if not _is_mono:
                 are_mono.append(False)
@@ -379,7 +381,8 @@ class TreeExplore:
                 tmp_report, tmp_mono = self.__recursive_mono__(
                                                 tree         = tree,
                                                 clade        = species, 
-                                                tax_map      = tax_map
+                                                tax_map      = tax_map,
+                                                skip_taxa    =  skip_taxa
                                             )
                 if tmp_mono:
                     # eliminate P taxa
@@ -578,12 +581,33 @@ class TreeExplore:
 
         return other_taxa
 
+    def _is_t_monotypic(self, t_clade_node, skip_taxa):
+        all_taxons = []
+
+        for spps in t_clade_node.leaf_iter():
+            tmp_spps = spps.taxon.label
+            if not tmp_spps in skip_taxa:
+                all_taxons.append(tmp_spps)
+
+        return True if len(all_taxons) == 1 else False
+
     def _check_chimps(self, t_clade_node, tax_map, level, P_tax, P_other = None):
 
         # P_other, P_tax
         passed_nodes = 0
+        offset = 0
         # is_mono      = False
         # [i.taxon.label for i in t_clade_node.leaf_iter()]
+        is_t_monotypic = self._is_t_monotypic(
+                            t_clade_node = t_clade_node,
+                            skip_taxa    = P_tax
+                        )
+
+        if is_t_monotypic:
+            passed_nodes += 1
+            offset += 1
+            t_clade_node = t_clade_node._parent_node
+
         source_node = t_clade_node
 
         while True:
@@ -600,12 +624,15 @@ class TreeExplore:
             t_clade_node  = t_clade_node._parent_node
             passed_nodes += 1
 
-        if passed_nodes == 0:
+        if passed_nodes == 0 + offset:
             return (False, None, P_other)
-        elif passed_nodes == 1:
+
+        elif passed_nodes == 1 + offset:
             reason = 'T node is monophyletic at %s group' % level
-        elif passed_nodes == 2:
+
+        elif passed_nodes == 2 + offset:
             reason = 'T parent node is monophyletic at %s group' % level
+
         else:
             reason = 'T parent node and %s node(s) back are monophyletic at %s group' % (passed_nodes - 2, level)
             P_other = set(P_other) - set([i.taxon.label for i in source_node.leaf_iter()])
@@ -619,6 +646,8 @@ class TreeExplore:
         return (True, reason, P_other)        
 
     def _t_selection(self, tree, t_clade):
+
+        # t_clade = f_clades[2]
 
         original       = t_clade
         level,tax_map  = self._t_find_stem(t_clade)
@@ -942,10 +971,10 @@ class TreeExplore:
 # [i.taxon for i in tree.leaf_node_iter()]
 
 # self = TreeExplore(
-#     taxnomyfile= "/Users/ulises/Desktop/demo/tlike/taxa_tlike.csv", 
+#     taxnomyfile= "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/tlike/taxa_file.csv", 
 #     outgroup= None,
 #     collpasebysupp=True,
-#     treefiles=['/Users/ulises/Desktop/demo/tlike/E0004.tree']
+#     treefiles=['/Users/ulises/Desktop/E0713.listd_allsets.NT_aligned.fasta_trimmed.nex.tree']
 # )
 
 # self.find_Tlikes()
