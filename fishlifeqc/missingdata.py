@@ -617,8 +617,8 @@ class Missingdata(Deletion):
                 result  = p.map_async(self.trimiterator, (fasta,))
                 preout.append(result)
 
-            for p in preout:
-                gotit = p.get()[0]
+            for pr in preout:
+                gotit = pr.get()[0]
                 if gotit:
                     fasta, desc = gotit
                     passed.append(fasta)
