@@ -730,11 +730,16 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
                 sys.stderr.write("Mapping taxa...Ok\n\n")
                 sys.stderr.flush()
 
-            out = []
+            out   = []
+            preout = []
             for seq_tree in self.seq_tree:
-                preout = p.map_async(self._check, (seq_tree,)).get()[0]
-                if preout:
-                    out.append(preout)
+                result = p.map_async(self._check, (seq_tree,))
+                preout.append(result)
+
+            for pr in preout:
+                gotit = pr.get()[0]
+                if gotit:
+                    out.append(gotit)
 
             sys.stderr.write("\n")
             sys.stderr.flush()
@@ -749,16 +754,23 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
                 sys.stderr.write("\n")
                 sys.stderr.flush()
-                
+
+                preout = []
                 for seq_metadata in tuple( rax_metadata.items() ):
-                    # seq_metadata
-                    failed, rows = p.map_async(self._monophyly_au_test, (seq_metadata,)).get()[0]
+                    # print(seq_metadata)
+                    result = p.map_async(self._monophyly_au_test, (seq_metadata,))
+                    preout.append(result)
 
-                    if failed:
-                        au_failed.append(failed)
+                for pr in preout:
+                    gotit = pr.get()[0]
+                    if gotit:
+                        failed, rows = gotit
 
-                    if rows:
-                        au_test_table.extend(rows)
+                        if failed:
+                            au_failed.append(failed)
+
+                        if rows:
+                            au_test_table.extend(rows)
 
             self._write_au_table(au_test_table)
             self._write_failures(rax_failed, au_failed)
