@@ -77,7 +77,7 @@ setup(name="fishlifeqc",
         },
       scripts=[
           './scripts/splitexonfiles.py',
-          './scripts/codomco.py',
+        #   './scripts/codomco.py',
           './scripts/deleteheaders.py',
           './scripts/merge.py',
           './fishlifeqc/concatenate.py',
