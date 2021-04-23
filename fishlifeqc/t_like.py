@@ -931,6 +931,8 @@ class TreeExplore:
                 writer = csv.writer(f)
                 writer.writerows(out)
 
+                sys.stdout.write( "\nReport written at %s\n" % self.outfilename )
+
     def _rename_tips(self, file_tree):
         # file_tree = '../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile'
 
