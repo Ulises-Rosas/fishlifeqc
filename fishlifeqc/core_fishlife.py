@@ -530,7 +530,11 @@ Example:
     * Codon aware running:
 
         $ fishlifeqc para -t [taxonomy file] -c
-
+""",
+epilog= """
+Note: Since constrained trees are reconstructed with RAxML internally, it is 
+recommended to use RAxML trees as input trees to make better comparisons on 
+site likelihood estimations (needed for AU tests with CONSEL)
 """)
 para.add_argument('-f','--forceall',
                    action="store_true",

@@ -127,23 +127,40 @@ class Consel:
             self._site_likehood(seq_tree)
 
     def _is_incongruent(self, table):
-        return False if table['1'] == '1' else True
+
+        rank = '1'
+
+        is_congruent   = table[rank]['item'] == '1'
+        is_significant = float(table[rank]['au']) >= 0.95
+
+        if not is_congruent and is_significant:
+            return True
+
+        else:
+            return False
 
     def is_incongruent(self, consel_out):
+        '''
+        # Example of consel out:
 
+        reading RAxML_perSiteLLs.E0323.fasta_Two_Hypothesis.pv\n
+        rank item    obs     au     np |     bp     pp     kh     sh    wkh    wsh |\n
+           1    1  -10.9  0.969  0.962 |  0.963  1.000  0.947  0.947  0.947  0.947 |\n
+           2    2   10.9  0.031  0.038 |  0.037  2e-05  0.053  0.053  0.053  0.053 |\n
+        '''
         table = {}
         with open(consel_out, 'r') as f:
             for i in f.readlines():
                 line = i.strip()
                 if line and not re.findall("(rank|reading)", line):
                     columns = re.split("[ ]+", line)
-                    table[columns[1] ] = columns[2]
+                    table[columns[1] ] = { 'item': columns[2], 'au': columns[4] }
 
         return self._is_incongruent(table)
         
     def _consel_pipe(self, seq_tree):
         """
-        return failed (list|None) and is_incongruent (bool | None)
+        return failed (list | None) and is_incongruent (None | bool)
         """
 
         seq,_ = seq_tree
@@ -201,7 +218,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
                  tree_extension = ".tree",
                  taxonomyfile = None,
 
-                 recycle_monos = True, # internal default
+                 recycle_monos = False, # internal default
                  force_all = False,
                  tgroup = None,
                  raxml_exe = RAXML,
@@ -265,6 +282,10 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         
 
     def _get_taxa(self, obj, is_nd = True):
+        """
+        get all taxa from either 
+        a node or the whole tree
+        """
         tmp_iter = obj.leaf_iter() if is_nd else obj.leaf_node_iter()
         return [i.taxon.label for i in tmp_iter]
 
@@ -276,7 +297,15 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         for mt in mytaxa:
 
             if not self._t_like_taxa.__contains__(mt):
-                continue
+                """
+                not the most efficient
+                way to assess this due it 
+                might have been done before 
+                iteration.                
+                """
+                sys.stderr.write("\nTaxon '%s' not represented at taxonomy file\n" % mt)
+                sys.stderr.flush()
+                exit()
 
             tmp_group = self._t_like_taxa[mt][index]
             if not mygroups.__contains__(tmp_group):
@@ -290,21 +319,100 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         mytaxa = self._get_taxa(c_tree, is_nd=False)
         return self._iter_taxa_file(mytaxa)
 
-    def _get_status_groups(self, c_tree, mygroups):
+    def _order_splits(self, splits: list, all_taxa: set) -> list:
         """
-        True if monophyletic
+        Order splits in function of
+        split size taking into account
+        non-nested splits. This is accomplished
+        by iteratively selecting bigger splits
+        and assessing if these ones contain
+        other splits
         """
-        index = 0
+        group_sort = sorted( splits, key = lambda mylist: len(mylist), reverse = True )
 
+        out   = []
+        taken = []
+        node  = 0
+        
+        for splt in group_sort:
+
+            already_taken = set(taken)
+
+            if already_taken == all_taxa:
+                break
+
+            new_taxa = set(splt) - already_taken
+
+            if not new_taxa:
+                continue
+
+            out.extend( [ (i, node) for i in splt ] )
+            taken.extend( splt )
+            node += 1
+
+        return out
+
+    def _rank_nodes(self, mynd, taxa):
+        """
+        rank nodes in function
+        of frequency of the taxa's group
+        """
+        all_taxa   = set(taxa)
+        splits     = []
+        skip_nodes = []
+        for tmp_pre in mynd.preorder_iter():
+
+            if tmp_pre == mynd:
+                continue
+            
+            if tmp_pre in skip_nodes:
+                continue
+
+            split_taxa = [i.taxon.label for i in tmp_pre.leaf_iter()]
+            othertaxa  = set(split_taxa) - all_taxa # other taxa from target taxa.
+
+            if len(othertaxa) == len(split_taxa):
+                # if this variable length
+                # is equal to the whole split (node),
+                # it means it does not contain
+                # any target taxa and it is not
+                # worth to iterate any child node onwards
+                skip_nodes.extend([i for i in tmp_pre.preorder_iter()])
+                continue
+
+            if not othertaxa: # then, tip or monophyletic
+                splits.append(split_taxa)
+
+        return self._order_splits(splits, all_taxa)
+
+    def _get_status_groups(self, c_tree, mygroups) -> list:
+        """
+        # True if monophyletic
+
+        Third column rank species in function of
+        the amount of species per node. All these species
+        do not form a monophyletic group.
+
+        E.g.,
+        [
+            (group1, False, [ (spps1, 0), (spps2, 0), (spps3, 1), ...])
+            (group2, True , None)
+        ]
+        """
         group_status = []
 
         for group,taxa in mygroups.items():
+            # group = 'Stomiatiformes'
+            # taxa  = mygroups[group]
 
             nd      = c_tree.mrca(taxon_labels = taxa)
             nd_taxa = self._get_taxa(nd, is_nd=True)
-            is_same = self._is_same_group(nd_taxa, group_indx = index)
+            is_same = len( set(nd_taxa) - set(taxa) ) == 0 # inevitably includes monotypic
 
-            group_status.append( (group, is_same) )
+            if not is_same:
+                group_status.append( (group, is_same, self._rank_nodes(nd, taxa) ) )
+            else:
+                group_status.append( (group, is_same, None) )
 
         return group_status
 
@@ -400,6 +508,23 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
         return all_sets
 
+    def _separate_group_status(self, group_status: list) -> tuple:
+        """
+        return: (list, dict)
+        """
+        para_groups = []
+        para_groups_taxa = {}
+
+        for p in group_status:
+            group    = p[0]
+            is_mono  = p[1]
+            its_taxa = p[2]
+            if not is_mono:
+                para_groups.append(group)
+                para_groups_taxa[group] = its_taxa
+
+        return (para_groups, para_groups_taxa)
+
     def _just_taxa(self, file_tree):
 
         bmfile = os.path.basename( file_tree )
@@ -451,14 +576,9 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         self._rooting(c_tree)
 
         mygroups     = self._get_groups(c_tree)
-        group_status = self._get_status_groups(c_tree, mygroups) 
-        # True if monophyletic
-        # [ (spp1 , True ),
-        #   (spp2 , False),
-        # ]
+        group_status = self._get_status_groups(c_tree, mygroups)
 
-        para_groups      = [i[0] for i in group_status  if i[1] is False]
-        para_groups_taxa = { p:mygroups[p] for p in para_groups  }
+        para_groups, para_groups_taxa = self._separate_group_status(group_status) 
         
 
         if not para_groups:
@@ -573,11 +693,14 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
     def _two_hypothesis_file(self, cons_trees, raxml_metadata):
         """
-        create two hypothesis file
+        # create two hypothesis file
 
         Lines contain:
         1. Original tree
         2. Full constraint
+
+        Update raxml_metadata by adding the 
+        two-hypothesis file
         """
 
         for seq,full_constr in cons_trees:
@@ -602,7 +725,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             os.remove( full_constr )
             os.remove( partial_constr )
 
-        return raxml_metadata
+        # return raxml_metadata
 
     def _run_raxml(self, _check_out):
         """
@@ -623,16 +746,23 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         if not cons_trees:
             return (failed, None)
         
-        self._two_hypothesis_file(cons_trees, metadata)
+        self._two_hypothesis_file(cons_trees, metadata) # metadata is updated
 
         return (failed, metadata)
 
-    def _make_row(self, exon, para_seqs, para, tested):
-        
-        len_para_seqs = len(para_seqs)
+    def _make_row(self, exon, para_seqs_rank, para, tested):
+        # exon, para_seqs_rank, para, tested = exon, para_seqs, ap, is_tested
+        len_para_seqs = len(para_seqs_rank)
+
+        para_seqs = []
+        node_rank = []
+        for s,r in para_seqs_rank:
+            para_seqs.append(s)
+            node_rank.append(r)
 
         return list(zip( [exon]   * len_para_seqs  ,
-                         para_seqs                 ,
+                          para_seqs                 ,
+                          node_rank                 ,
                          [para]   * len_para_seqs  ,
                          [tested] * len_para_seqs  ))
 
@@ -660,6 +790,13 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
         seq,metadata = seq_metadata
 
+        if not metadata.__contains__('two_hypo_file'):
+            # these are those sequences
+            # that failed raxml step and are
+            # already accounted at `rax_failed`
+            # variable
+            return None
+
         failed,is_incongruent = self._consel_pipe((
                                             metadata['seq_complete' ], 
                                             metadata['two_hypo_file']
@@ -673,7 +810,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
     def _write_au_table(self, au_table):
         out_file = "au_table.csv" 
 
-        out = [["exon", "sequence", "paraphyletic_group", "au_tested"]]
+        out = [["exon", "sequence", "node_group", "paraphyletic_group", "au_tested"]]
         out += au_table
 
         if len(out) > 1:
@@ -708,7 +845,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
     def run(self):
 
         self.seq_tree = self._readmetadata()
-        # self.seq_tree = [i for i in self.seq_tree if re.findall("E0072", i[0])]
+        # self.seq_tree = [i for i in self.seq_tree if re.findall("E0055", i[0])]
 
         with Pool(processes = self.threads) as p:
 
@@ -744,7 +881,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             sys.stderr.write("\n")
             sys.stderr.flush()
 
-            # pprint.pprint(out)
+            # pprint.pprint(out, indent = 4)
             rax_failed, rax_metadata = self._run_raxml(_check_out = out)
 
             au_test_table = []
@@ -775,9 +912,9 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             self._write_au_table(au_test_table)
             self._write_failures(rax_failed, au_failed)
 
-# taxonomyfile = "/Users/ulises/Desktop/test/mono_tax_file.csv"
+# taxonomyfile = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/tax_file.csv"
 # self = Monophyly(
-#         path= "/Users/ulises/Desktop/GOL/software/fishlifeqc/test/para",
+#         path= "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para",
 #         fasta_extension=".fasta",
 #         tree_extension=".tree",
 #         taxonomyfile = taxonomyfile,
@@ -787,10 +924,10 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 #         collpasebysupp = True, # for collapse
 #         minsupp = 0,           # for collapse
 
-#         recycle_monos = True, # internal default
-#         force_all = False,    # if True, it will force mono to ALL para
-#         tgroup = None,        # target group
-#         schema = 'newick',    # internal default
+#         recycle_monos = False, # internal default
+#         force_all = False,     # if True, it will force mono to ALL para
+#         tgroup = None,         # target group
+#         schema = 'newick',     # internal default
 #         threads = 5,        
 
 #         raxml_exe = RAXML,   # internal default
@@ -799,4 +936,4 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 #         iterations = 1,
 # )
 
-# # print(self._readmetadata())
+# self.run()
