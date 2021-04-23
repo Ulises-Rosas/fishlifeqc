@@ -2,7 +2,7 @@
 
 import argparse
 from multiprocessing import Pool
-from fishlifeqc.utils import codon_partitions_nexus
+from fishlifeqc.utils import codon_partitions
 
 def getOpts():
 
@@ -22,6 +22,9 @@ def getOpts():
     parser.add_argument('filenames',
                         nargs="+",
                         help='Filenames')
+    parser.add_argument('-r','--raxml_format',
+                    action="store_true",
+                    help='''[Optional] If selected, raxml format is created''')
     # parser.add_argument('-s','--suffix',
     #                     metavar="",
     #                     type= str,
@@ -35,17 +38,47 @@ def getOpts():
     args = parser.parse_args()
     return args
 
+
+class Codon_par:
+
+    def __init__(self, filenames = None, threads = 1, nexus = False):
+
+        self.filenames = filenames
+        self.threads = threads
+        self.nexus = nexus
+
+    def _codon_partition(self, seq):
+        return codon_partitions(seq, outname=None, nexus=self.nexus)
+
+    def run(self):
+
+        with Pool(processes = self.threads) as p:
+
+            no_matched = []
+            preout     = []
+            for seq in self.filenames:
+                results = p.apply_async(self._codon_partition, (seq,))
+                preout.append(results)
+
+            for pr in preout:
+                gotit = pr.get()
+                if gotit:
+                    no_matched.append(gotit)
+
+            no_partitions = list(filter(None, no_matched))
+
+            if no_partitions:    
+                with open('no_partitions.txt', 'w') as f:
+                    f.writelines(no_partitions)
+
 def main():
     args = getOpts()
 
-    with Pool(processes = args.threads) as p:
-        matched  = [*p.map(codon_partitions_nexus, args.filenames)]
-
-    no_partitions = list(filter(None, matched))
-
-    if no_partitions:    
-        with open('no_partitions.txt', 'w') as f:
-            f.writelines(no_partitions)
+    Codon_par(
+        filenames = args.filenames, 
+        threads   = args.threads,
+        nexus     = args.raxml_format
+        ).run()
 
 if __name__ == "__main__":
     main()
