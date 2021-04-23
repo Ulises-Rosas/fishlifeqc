@@ -579,8 +579,7 @@ para_tree_mod.add_argument('-L', '--min_len',
                     type    = float,
                     default = 0.000001,
                     help    = '''[Optional] minimun branch length to collapse 
-                    internal branch. This value is also used to 
-                    define T-like clades [Default: 0.000001]''')
+                    internal branch [Default: 0.000001]''')
 para_tree_mod.add_argument('-u','--ucoll_bysupp',
                     action="store_false",
                     help='''[Optional] If selected, internal branches are not collapsed by support value''')

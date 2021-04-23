@@ -19,7 +19,7 @@ from fishlifeqc.utils       import (fas_to_dic,
 myos = sys.platform
 
 if not(myos == 'linux' or  myos == 'linux2' or myos == 'darwin'):
-    sys.stderr.write( "This command is not available for %s yet." % myos )
+    sys.stderr.write( "\nThis command is not available for %s yet.\n" % myos )
     sys.stderr.flush()
     exit()
 
