@@ -23,7 +23,7 @@ def getOpts():
                         nargs="+",
                         help='Filenames')
     parser.add_argument('-r','--raxml_format',
-                    action="store_true",
+                    action="store_false",
                     help='''[Optional] If selected, raxml format is created''')
     # parser.add_argument('-s','--suffix',
     #                     metavar="",
