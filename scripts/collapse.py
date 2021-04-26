@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import dendropy
-from multiprocessing import Manager, Pool
+from multiprocessing import Pool
 from fishlifeqc.t_like import TreeExplore
 
 class Collapse(TreeExplore):
@@ -40,10 +40,14 @@ class Collapse(TreeExplore):
     def export_collapse(self):
 
         with Pool(processes = self.threads) as p:
-
+            preout = []
             for file_tree in self.treefiles:
-                self._export_collapse(file_tree)
-                # p.apply_async(self._export_collapse, (file_tree,)).get()
+                # self._export_collapse(file_tree)
+                results = p.apply_async(self._export_collapse, (file_tree,))
+                preout.append(results)
+
+            for i in preout:
+                i.get()
 
 def getOpts():
 
