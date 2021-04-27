@@ -78,7 +78,7 @@ missingdata.add_argument('-H','--coverage',
                     help='''[Optional] Maximum allowed gap proportion per sequence.
                              Sequences with more than this value are 
                              removed [Default: %s]''' % 0.5)
-missingdata.add_argument('-m','--min_count_prop',
+missingdata.add_argument('-m','--min_seqs_per_aln',
                     metavar="",
                     type = float,
                     default = 0.25,
@@ -87,8 +87,18 @@ missingdata.add_argument('-m','--min_count_prop',
                             sequences from all input sequences in order to get a 
                             minimum allowed number of sequences per alignment. E.g., if 
                             this paremeter is set to 0.25 and the total number of unique sequence
-                            is 100, this script will select alignments with more or equal than 25
+                            is 100, this script will select alignments with more than or equal to 25
                             sequences [Default: %s]''' % 0.25)
+missingdata.add_argument('-w','--min_alns_per_seq',
+                    metavar="",
+                    type = float,
+                    default = 0,
+                    help='''[Optional] Minimum proportion of alignments per sequence. 
+                            This proportion is multiplied by the total number of input 
+                            alignments in order to get a minimum allowed number of alignments 
+                            per sequences. E.g., if this paremeter is set to 0.25 and the total 
+                            number of alignments is 100, this script will select sequences 
+                            present in more than or equal to 25 alignments [Default: %s]''' % 0)
 missingdata.add_argument('-c','--codon_aware',
                     action="store_true",
                     help='[Optional] If selected, trimming is done by codons')
@@ -627,8 +637,8 @@ def main():
                 htrim  = wholeargs.coverage, 
                 vtrim  = wholeargs.edges, 
                 itrim  = wholeargs.internal,
-                min_count_prop = wholeargs.min_count_prop,
-                custom_deletion_list = wholeargs.add_deletion,
+                min_prop_sequences_per_aln = wholeargs.min_seqs_per_aln,
+                min_prop_alns_per_sequence = wholeargs.min_alns_per_seq,
                 outputsuffix = wholeargs.suffix, 
                 codon_aware  = wholeargs.codon_aware, # default false
                 stop_opt = wholeargs.stop_lib,

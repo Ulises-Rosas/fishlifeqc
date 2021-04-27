@@ -1,7 +1,8 @@
-import os
+
 import csv
 import sys
 import fishlifeseq
+import collections
 from multiprocessing import Pool
 from fishlifeqc.utils import isfasta, fas_to_dic, compare_alns
 from fishlifeqc.delete import Deletion
@@ -47,7 +48,8 @@ class Missingdata(Deletion):
                 htrim = 0.6,  # if not horizontal, just set self.htrim = 1
                 vtrim = 0.1,
                 itrim = 0.1,
-                min_count_prop = 0.25,
+                min_prop_sequences_per_aln = 0.25,
+                min_prop_alns_per_sequence = 0,
                 custom_deletion_list = None,
                 outputsuffix = "_trimmed", 
                 codon_aware = False,
@@ -65,9 +67,11 @@ class Missingdata(Deletion):
         self.htrim = htrim # maximum gap percentage allowed per sequence
         self.vtrim = vtrim # maximum gap percentage allowed per columm
         self.itrim = itrim # maximum gap percentage allowed per internal columm
-        self.min_count_prop = min_count_prop # Minimum proportion of sequences per alignments
+        self.min_prop_sequences_per_aln = min_prop_sequences_per_aln # Minimum proportion of sequences per alignments
+        self.min_prop_alns_per_sequence = min_prop_alns_per_sequence
 
-        self.min_count = 4 # safe internal default
+        self.min_sequences_per_aln = 4 # safe internal default
+        
         self.outputsuffix = outputsuffix
 
 
@@ -497,7 +501,7 @@ class Missingdata(Deletion):
             return None
 
         # trim by count and a custom list
-        trimmed = self.customCountTrimming(alignment, self.min_count, self.customlist)
+        trimmed = self.customCountTrimming(alignment, self.min_sequences_per_aln, self.customlist)
         # if not trimmed:
         #     return None
 
@@ -520,6 +524,14 @@ class Missingdata(Deletion):
         else:
             return None
 
+    def _update_custom_list(self, headers_f_joined):
+
+        headers_count = collections.Counter(headers_f_joined)
+        thresh = int( len(self.fasta) * self.min_prop_alns_per_sequence )
+        to_del = [k.strip().replace(">", "") for k,v in headers_count.items() if v < thresh]
+
+        self.customlist += to_del
+
     def _update_min_counts(self, all_headers):
         """
         set the minimum amount of sequences
@@ -537,9 +549,13 @@ class Missingdata(Deletion):
         for h in headers_f:
             headers_f_joined.extend(h)
         
-        headers_uniq   = set(headers_f_joined)
+        headers_uniq = set(headers_f_joined)
+        new_min_seqs_per_aln = int( len(headers_uniq) * self.min_prop_sequences_per_aln )
 
-        self.min_count = int( len(headers_uniq) * self.min_count_prop )
+        if new_min_seqs_per_aln > self.min_sequences_per_aln:
+            self.min_sequences_per_aln = new_min_seqs_per_aln
+
+        self._update_custom_list(headers_f_joined)
 
     def _write_report(self, table, failed):
         # table = descriptions
@@ -592,7 +608,7 @@ class Missingdata(Deletion):
 
         with Pool(processes = self.threads) as p:
 
-            if self.min_count_prop:
+            if self.min_prop_sequences_per_aln or self.min_prop_alns_per_sequence:
                 sys.stderr.write("\nMapping taxa...\r")
                 sys.stderr.flush()
 
@@ -649,7 +665,8 @@ class Missingdata(Deletion):
 #     outputsuffix = "_trimmed.fasta",
 #     itrim= 0.6,
 #     vtrim= 0.5,
-#     min_count_prop=0.25,
+#     min_prop_sequences_per_aln = 0.25,
+#     min_prop_alns_per_sequence = 0.25,
 #     codon_aware=True,
 #     threads= 3
 # )
