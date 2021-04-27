@@ -527,7 +527,7 @@ class Missingdata(Deletion):
     def _update_custom_list(self, headers_f_joined):
 
         headers_count = collections.Counter(headers_f_joined)
-        thresh = int( len(self.fasta) * self.min_prop_alns_per_sequence )
+        thresh = round( len(self.fasta) * self.min_prop_alns_per_sequence )
         to_del = [k.strip().replace(">", "") for k,v in headers_count.items() if v < thresh]
 
         self.customlist += to_del
@@ -550,7 +550,7 @@ class Missingdata(Deletion):
             headers_f_joined.extend(h)
         
         headers_uniq = set(headers_f_joined)
-        new_min_seqs_per_aln = int( len(headers_uniq) * self.min_prop_sequences_per_aln )
+        new_min_seqs_per_aln = round( len(headers_uniq) * self.min_prop_sequences_per_aln )
 
         if new_min_seqs_per_aln > self.min_sequences_per_aln:
             self.min_sequences_per_aln = new_min_seqs_per_aln
