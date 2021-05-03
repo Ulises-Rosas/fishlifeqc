@@ -60,19 +60,20 @@ with open('README.md') as readme_file:
     readme = readme_file.read()
 
 setup(name="fishlifeqc",
-      version='0.4.5',
+      version='0.5.0',
       author='Ulises Rosas',
       long_description = readme,
       long_description_content_type='text/markdown',
       url='https://github.com/Ulises-Rosas/fishlifeqc',
-      packages=['fishlifeqc'],
+      packages=['fishlifeqc', 'qcutil'],
       ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
       install_requires = dependencies,
       zip_safe = False,
       entry_points={
         'console_scripts': [
-            'fishlifeqc   = fishlifeqc.core_fishlife:main'
+            'fishlifeqc   = fishlifeqc.core_fishlife:main',
+            'qcutil = qcutil.cli:main'
             ]
         },
       scripts=[

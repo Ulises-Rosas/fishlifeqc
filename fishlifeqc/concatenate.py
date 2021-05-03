@@ -135,7 +135,7 @@ def getOpts():
 
                         Concatenate sequences
 
-    * Concatenate assuming no codon partition (default):
+    * Concatenate without creating a codon partition file (default):
 
         $ concatenate.py [exon files]
 
