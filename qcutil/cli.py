@@ -31,6 +31,14 @@ describe.add_argument('filenames',
                       metavar = 'file',
                       nargs="+",
                       help='Filenames')
+describe.add_argument('-a','--per_aln',
+                        action='store_true',
+                        help=' If selected, summary information is done per alignment')
+describe.add_argument('-p','--prefix', 
+                        metavar="",
+                        type = str,
+                        default='stats',
+                        help='prefix name for outputs [Default = stats ]' )
 describe.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -117,6 +125,8 @@ def main():
 
         Stats(
             fastas= wholeargs.filenames,
+            align_based= wholeargs.per_aln,
+            prefix = wholeargs.prefix,
             threads= wholeargs.threads
         ).run()
 

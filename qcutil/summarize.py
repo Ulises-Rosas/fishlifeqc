@@ -4,7 +4,6 @@ import os
 import csv
 import sys
 import copy
-import glob
 import dendropy
 import fishlifeseq
 import collections
@@ -15,11 +14,15 @@ class Stats:
 
     def __init__(self,
                 fastas = None,
+                align_based = False,
+                prefix = 'stats',
                 threads = 1):
 
         self.gap_chars = ['N', '-', '!']                
         self.fastas    = fastas
         self.threads   = threads
+        self.align_based = align_based
+        self.prefix = prefix
 
     def _stat_sites_std(self, aln):
         """
@@ -73,7 +76,13 @@ class Stats:
     def stat_sites(self, fasta_file):
 
         aln = fas_to_dic(fasta_file)
-        return self._stat_sites_std(aln)
+
+        if self.align_based:
+            al_name = os.path.basename(fasta_file)
+
+            return [al_name] + list(self._stat_sites_std(aln))
+        else:
+            return self._stat_sites_std(aln)
 
     def _write_report(self, out, all_spps, all_seqs):
         """
@@ -113,7 +122,7 @@ class Stats:
         mlop = a[5] * 100 / ( H * N ) 
 
         # Mean of locus gap percentage
-        mlgp = a[2]*100/N
+        mlgp = a[2] * 100 / N
 
 
         # Nucleotide ocuppancy (when concatenated)
@@ -141,6 +150,46 @@ class Stats:
             print(str_ft % (c,v))
         print()
 
+    def _write_report_aln(self, out, all_spps):
+
+        s_table = sorted( out,
+                          key = lambda l: l[6], 
+                          reverse = False )
+        H = len(all_spps)
+
+        out_table = []
+        for na,pis,vars,gap_p,_,seq_len,nhe in s_table:
+
+            out_table.append([
+                na,
+                round(nhe * 100 / H, 6),
+                nhe,
+                seq_len,
+                round(gap_p * 100, 6),
+                pis,
+                vars
+            ])
+
+        col_table = [["aln_name",
+                     "headers_perc",
+                     "headers_number",
+                     "seq_len",
+                     "pis",
+                     "gap_perc",
+                     "var_sites"
+                     ]]
+     
+        out_colum = col_table + out_table
+
+        outfile = self.prefix + "_perAln.tsv"
+
+        with open(outfile, 'w') as f:
+            writer = csv.writer(f, delimiter = "\t")
+            writer.writerows(out_colum)
+
+        sys.stdout.write( "\nReport written at %s\n" % outfile )
+        sys.stdout.flush()
+
     def run(self):
 
         with Pool(processes=self.threads) as p:
@@ -165,7 +214,24 @@ class Stats:
             for pr in preout:
                 out.append(  pr.get() )
 
-            self._write_report(out, all_spps, self.fastas)
+            if self.align_based:
+                self._write_report_aln(out, all_spps)
+
+            else:
+                self._write_report(out, all_spps, self.fastas)
+
+
+# import glob
+
+# aln_glob = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/*.fasta"
+# alns = glob.glob(aln_glob)
+# ref_tree = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/bl/prota_all_trimm_noT.ML_spp.tree"
+
+# self = Stats(
+#     fastas= alns,
+#     align_based=True,
+#     threads= 3
+# )
 
 
 class Incongruence:
@@ -461,7 +527,7 @@ class Incongruence:
 #         inspect.getmembers( weird_obj, lambda a:not(inspect.isroutine(a)) ),
 #         indent= 4
 #     )
-
+# import glob
 # gene_tree_glob = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/*.tree"
 # gene_trees = glob.glob(gene_tree_glob)
 # ref_tree = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/bl/prota_all_trimm_noT.ML_spp.tree"
