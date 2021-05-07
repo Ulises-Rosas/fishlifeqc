@@ -590,9 +590,9 @@ para_tree_mod.add_argument('-L', '--min_len',
                     default = 0.000001,
                     help    = '''[Optional] minimun branch length to collapse 
                     internal branch [Default: 0.000001]''')
-para_tree_mod.add_argument('-u','--ucoll_bysupp',
-                    action="store_false",
-                    help='''[Optional] If selected, internal branches are not collapsed by support value''')
+para_tree_mod.add_argument('-s','--coll_bysupp',
+                    action="store_true",
+                    help='''[Optional] If selected, internal branches are collapsed by support value''')
 para_tree_mod.add_argument('-S', '--min_supp',
                     metavar = "",
                     type    = float,
@@ -711,6 +711,7 @@ def main():
         ).BrLengths()
 
     elif wholeargs.subcommand == 'para':
+        # print(wholeargs)
 
         Monophyly(
             path            = wholeargs.path,
@@ -720,7 +721,7 @@ def main():
             
             collapsebylen   = wholeargs.coll_bylen,   # for collapse
             minlen          = wholeargs.min_len,      # for collapse
-            collpasebysupp  = wholeargs.ucoll_bysupp, # for collapse
+            collpasebysupp  = wholeargs.coll_bysupp, # for collapse
             minsupp         = wholeargs.min_supp,     # for collapse
             force_all       = wholeargs.forceall,   # if True, it will force mono to ALL para
             tgroup          = wholeargs.test_group, # target group
