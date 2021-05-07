@@ -174,8 +174,8 @@ class Stats:
                      "headers_perc",
                      "headers_number",
                      "seq_len",
-                     "pis",
                      "gap_perc",
+                     "pis",
                      "var_sites"
                      ]]
      
