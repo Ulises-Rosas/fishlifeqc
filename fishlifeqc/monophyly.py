@@ -289,25 +289,39 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         tmp_iter = obj.leaf_iter() if is_nd else obj.leaf_node_iter()
         return [i.taxon.label for i in tmp_iter]
 
+    def _taxa_lib(self):
+
+        myrows = []
+        with open(self.taxonomyfile, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if not row[0].startswith("#"):
+                    myrows.append(row)
+
+        df = {}
+        duplications = []
+        for row in myrows:
+            spps = row[0]
+
+            if df.__contains__(spps):
+                duplications.append(spps)
+
+            df[spps] = { n:v  for n,v in enumerate(row[1:])}
+
+        return df
+
     def _iter_taxa_file(self, mytaxa):
-        #TODO: change index to zero after development
         index = 0
         mygroups = {}
 
+        _taxa_lib = self._taxa_lib()
+
         for mt in mytaxa:
 
-            if not self._t_like_taxa.__contains__(mt):
-                """
-                not the most efficient
-                way to assess this due it 
-                might have been done before 
-                iteration.                
-                """
-                sys.stderr.write("\nTaxon '%s' not represented at taxonomy file\n" % mt)
-                sys.stderr.flush()
-                exit()
+            if not _taxa_lib.__contains__(mt):
+                _taxa_lib[mt] = {index: "NA"}
 
-            tmp_group = self._t_like_taxa[mt][index]
+            tmp_group = _taxa_lib[mt][index]
             if not mygroups.__contains__(tmp_group):
                 mygroups[tmp_group] = [mt]
             else:
@@ -483,6 +497,10 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
                 no_parenth += under_quote
                 continue
 
+            if k == "NA":
+                no_parenth += under_quote
+                continue
+
             tmp_parenth = ["(%s)" % ",".join(under_quote)]
 
             if k in para_groups:
@@ -595,6 +613,9 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             # Otherwise, `other_group`
             # are all paraphyletic groups
             for g in self.s_groups:
+                if g == "NA":
+                    continue
+
                 if g in para_groups:
                     target_group += g
                     break
@@ -856,12 +877,16 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
                 sys.stderr.write("\nMapping taxa...\r")
                 sys.stderr.flush()
 
-                taxa = []
+                pretaxa = []
                 for _,file_tree in self.seq_tree:
-                    preout = p.map_async(self._just_taxa, (file_tree,)).get()[0]
-                    # print(preout)
-                    if preout:
-                        taxa.extend(preout)
+                    preout = p.map_async(self._just_taxa, (file_tree,))
+                    pretaxa.append(preout)
+
+            
+                # print(preout)
+                taxa = []
+                for pt in pretaxa:
+                    taxa.extend(pt.get()[0])
 
                 self.s_groups = self._taxa2groups(taxa)
                 sys.stderr.write("Mapping taxa...Ok\n\n")
