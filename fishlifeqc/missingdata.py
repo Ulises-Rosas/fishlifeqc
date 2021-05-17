@@ -610,6 +610,9 @@ class Missingdata(Deletion):
         sys.stderr.flush()
 
     def run(self):
+        
+        if not self.fasta:
+            return None
 
         with Pool(processes = self.threads) as p:
 
