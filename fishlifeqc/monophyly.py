@@ -141,12 +141,12 @@ class Consel:
 
     def is_incongruent(self, consel_out):
         '''
-        # Example of consel out:
+        Example of consel out (withour initial apostrophes):
 
-        reading RAxML_perSiteLLs.E0323.fasta_Two_Hypothesis.pv\n
-        rank item    obs     au     np |     bp     pp     kh     sh    wkh    wsh |\n
-           1    1  -10.9  0.969  0.962 |  0.963  1.000  0.947  0.947  0.947  0.947 |\n
-           2    2   10.9  0.031  0.038 |  0.037  2e-05  0.053  0.053  0.053  0.053 |\n
+        '# reading RAxML_perSiteLLs.E1381.fasta_Two_Hypothesis.pv
+        '# rank item    obs     au     np |     bp     pp     kh     sh    wkh    wsh |
+        '#    1    1   -4.7  0.932  0.899 |  0.897  0.991  0.886  0.886  0.886  0.886 |
+        '#    2    2    4.7  0.068  0.101 |  0.103  0.009  0.114  0.114  0.114  0.114 |       
         '''
         table = {}
         with open(consel_out, 'r') as f:

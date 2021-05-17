@@ -4,7 +4,7 @@ import sys
 import fishlifeseq
 import collections
 from multiprocessing import Pool
-from fishlifeqc.utils import isfasta, fas_to_dic, compare_alns
+from fishlifeqc.utils import isfasta, fas_to_dic
 from fishlifeqc.delete import Deletion
 
 FAILEDTOTRIM = "no_passed_trimming.txt"
@@ -502,25 +502,30 @@ class Missingdata(Deletion):
 
         # trim by count and a custom list
         trimmed = self.customCountTrimming(alignment, self.min_sequences_per_aln, self.customlist)
-        # if not trimmed:
-        #     return None
+        if not trimmed:
+            return None
 
         # close possible only-gaps columns
         # produced by `customCountTrimming` 
         # (i.e., only-gap columns supported only by 
         #        sequences belonging to `self.customlist`)
         trimmed = self.close_gaps(aln = trimmed, is_codon_aware =  self.codon_aware)
+        if not trimmed:
+            return None
 
         trimmed = self.verticalTrimming(aln = trimmed)
+        if not trimmed:
+            return None
 
         # horizontal trim, not length change
         trimmed = self.horizontalTrimming(aln = trimmed)
+        if not trimmed:
+            return None
 
         if trimmed:
             self.writeresults(trimmed, fasta)
-            desc = compare_alns(alignment, trimmed)
 
-            return (fasta, desc)
+            return fasta
         else:
             return None
 
@@ -618,7 +623,7 @@ class Missingdata(Deletion):
                 sys.stderr.write("Mapping taxa...Ok\n\n")
                 sys.stderr.flush()
 
-            descriptions = []
+            # descriptions = []
             passed       = []
 
             # for fasta in self.fasta:
@@ -636,9 +641,10 @@ class Missingdata(Deletion):
             for pr in preout:
                 gotit = pr.get()[0]
                 if gotit:
-                    fasta, desc = gotit
-                    passed.append(fasta)
-                    descriptions.append(desc)
+                    passed.append(gotit)
+                    # fasta, desc = gotit
+                    # passed.append(fasta)
+                    # descriptions.append(desc)
 
         failed = set(self.fasta) - set(list(filter(None, passed)))
 
@@ -647,7 +653,7 @@ class Missingdata(Deletion):
                 for i in failed:
                     f.write( "%s\n" % i)
 
-        self._write_report(descriptions, failed)
+        # self._write_report(descriptions, failed)
 
 # --- testings -- #
 # import glob

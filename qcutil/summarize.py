@@ -190,6 +190,11 @@ class Stats:
         sys.stdout.write( "\nReport written at %s\n" % outfile )
         sys.stdout.flush()
 
+    def _stats_headers(self, aln):
+
+
+        pass
+
     def run(self):
 
         with Pool(processes=self.threads) as p:
