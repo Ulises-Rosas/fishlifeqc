@@ -15,6 +15,7 @@ class Stats:
     def __init__(self,
                 fastas = None,
                 align_based = False,
+                seq_based = False,
                 prefix = 'stats',
                 threads = 1):
 
@@ -22,6 +23,7 @@ class Stats:
         self.fastas    = fastas
         self.threads   = threads
         self.align_based = align_based
+        self.seq_based = seq_based
         self.prefix = prefix
 
     def _stat_sites_std(self, aln):
@@ -153,7 +155,7 @@ class Stats:
     def _write_report_aln(self, out, all_spps):
 
         s_table = sorted( out,
-                          key = lambda l: l[6], 
+                          key = lambda l: l[6], # number of headers
                           reverse = False )
         H = len(all_spps)
 
@@ -162,18 +164,18 @@ class Stats:
 
             out_table.append([
                 na,
-                round(nhe * 100 / H, 6),
+                "%.4f" % (nhe/H),
                 nhe,
                 seq_len,
-                round(gap_p * 100, 6),
+                "%.2f" % (gap_p * 100),
                 pis,
                 vars
             ])
 
-        col_table = [["aln_name",
-                     "headers_perc",
-                     "headers_number",
-                     "seq_len",
+        col_table = [["aln",
+                     "seqs_per_aln_prop",
+                     "seqs_per_aln",
+                     "sites",
                      "gap_perc",
                      "pis",
                      "var_sites"
@@ -187,13 +189,45 @@ class Stats:
             writer = csv.writer(f, delimiter = "\t")
             writer.writerows(out_colum)
 
-        sys.stdout.write( "\nReport written at %s\n" % outfile )
+        sys.stdout.write( "\nReport for alignments written at %s\n" % outfile )
         sys.stdout.flush()
 
-    def _stats_headers(self, aln):
+    def _stats_headers(self, all_spps):
+        
+        s_table = sorted(
+             collections.Counter(all_spps).items(),
+             key = lambda kv: kv[1]
+             )
 
+        new_table = [["seq",
+                      "alns_per_seq_prop",
+                      "alns_per_seq",
+                      "cum_sum",
+                      "cum_sum_per",
+                     ]]
+     
+        nrow    = len(s_table)
+        nfastas = len(self.fastas)
 
-        pass
+        for n,spps_count in enumerate(s_table):
+
+            spps,count = spps_count
+            new_table.append([
+                spps.replace(">", ""),
+                "%.4f" % (count/nfastas),
+                count,
+                n + 1,
+                "%.2f" % ((n + 1)*100/nrow)
+            ])
+
+        outfile = self.prefix + "_perSeq.tsv"
+
+        with open(outfile, 'w') as f:
+            writer = csv.writer(f, delimiter = "\t")
+            writer.writerows(new_table)
+
+        sys.stdout.write("\nReport for sequences written at %s\n" % outfile)
+        sys.stdout.flush()
 
     def run(self):
 
@@ -204,11 +238,17 @@ class Stats:
                 result = p.apply_async( fishlifeseq.headers, (seq,) )
                 preout.append(result)
 
-            out = []
+            all_spps = []
             for pr in preout:
-                out.extend(  pr.get() )
+                all_spps.extend( pr.get() )
 
-            all_spps = list(set(out))
+            if self.seq_based:    
+                self._stats_headers(all_spps)
+
+                if not self.align_based:
+                    return None
+
+            all_spps_uniq = list(set(all_spps))
 
             preout = []
             for seq in self.fastas:
@@ -220,15 +260,16 @@ class Stats:
                 out.append(  pr.get() )
 
             if self.align_based:
-                self._write_report_aln(out, all_spps)
+                self._write_report_aln(out, all_spps_uniq)
 
             else:
-                self._write_report(out, all_spps, self.fastas)
+                self._write_report(out, all_spps_uniq, self.fastas)
 
 
 # import glob
 
-# aln_glob = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/*.fasta"
+# aln_glob = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/mdata/*.fasta"
+# # aln_glob = "/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln/internally_trimmed/*_trimmed"
 # alns = glob.glob(aln_glob)
 # ref_tree = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/bl/prota_all_trimm_noT.ML_spp.tree"
 

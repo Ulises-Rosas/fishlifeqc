@@ -34,6 +34,9 @@ describe.add_argument('filenames',
 describe.add_argument('-a','--per_aln',
                         action='store_true',
                         help=' If selected, summary information is done per alignment')
+describe.add_argument('-s','--per_seq',
+                        action='store_true',
+                        help=' If selected, summary information is done per sequence')
 describe.add_argument('-p','--prefix', 
                         metavar="",
                         type = str,
@@ -124,10 +127,11 @@ def main():
     if wholeargs.subcommand == "stats":
 
         Stats(
-            fastas= wholeargs.filenames,
-            align_based= wholeargs.per_aln,
-            prefix = wholeargs.prefix,
-            threads= wholeargs.threads
+            fastas      = wholeargs.filenames,
+            align_based = wholeargs.per_aln,
+            seq_based   = wholeargs.per_seq,
+            prefix      = wholeargs.prefix,
+            threads     = wholeargs.threads
         ).run()
 
     elif wholeargs.subcommand == "itt":

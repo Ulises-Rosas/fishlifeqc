@@ -88,7 +88,7 @@ missingdata.add_argument('-m','--min_seqs_per_aln',
                             minimum allowed number of sequences per alignment. E.g., if 
                             this paremeter is set to 0.25 and the total number of unique sequence
                             is 100, this script will select alignments with more than or equal to 25
-                            sequences [Default: %s]''' % 0.25)
+                            sequences. 'qcutil stats' option '-a' might find this parameter [Default: %s]''' % 0.25)
 missingdata.add_argument('-w','--min_alns_per_seq',
                     metavar="",
                     type = float,
@@ -98,7 +98,8 @@ missingdata.add_argument('-w','--min_alns_per_seq',
                             alignments in order to get a minimum allowed number of alignments 
                             per sequences. E.g., if this paremeter is set to 0.25 and the total 
                             number of alignments is 100, this script will select sequences 
-                            present in more than or equal to 25 alignments [Default: %s]''' % 0)
+                            present in more than or equal to 25 alignments.
+                            'qcutil stats' option '-s' might find this parameter [Default: %s]''' % 0)
 missingdata.add_argument('-c','--codon_aware',
                     action="store_true",
                     help='[Optional] If selected, trimming is done by codons')
