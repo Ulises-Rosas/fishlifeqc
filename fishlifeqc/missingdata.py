@@ -48,8 +48,8 @@ class Missingdata(Deletion):
                 htrim = 0.6,  # if not horizontal, just set self.htrim = 1
                 vtrim = 0.1,
                 itrim = 0.1,
-                min_prop_sequences_per_aln = 0.25,
-                min_prop_alns_per_sequence = 0,
+                min_sequences_per_aln = 4,
+                min_alns_per_sequence = 1,
                 custom_deletion_list = None,
                 outputsuffix = "_trimmed", 
                 codon_aware = False,
@@ -67,8 +67,8 @@ class Missingdata(Deletion):
         self.htrim = htrim # maximum gap percentage allowed per sequence
         self.vtrim = vtrim # maximum gap percentage allowed per columm
         self.itrim = itrim # maximum gap percentage allowed per internal columm
-        self.min_prop_sequences_per_aln = min_prop_sequences_per_aln # Minimum proportion of sequences per alignments
-        self.min_prop_alns_per_sequence = min_prop_alns_per_sequence
+        self.u_min_sequences_per_aln = min_sequences_per_aln # Minimum proportion of sequences per alignments
+        self.u_min_alns_per_sequence = min_alns_per_sequence
 
         self.min_sequences_per_aln = 4 # safe internal default
         
@@ -489,7 +489,7 @@ class Missingdata(Deletion):
         sys.stderr.write("Trimming: %s\n" % fasta )
         sys.stderr.flush()
 
-        # fasta = self.fasta[2]
+        # fasta = self.fasta[6]
         if not isfasta(fasta):
             return None
 
@@ -501,7 +501,9 @@ class Missingdata(Deletion):
             return None
 
         # trim by count and a custom list
-        trimmed = self.customCountTrimming(alignment, self.min_sequences_per_aln, self.customlist)
+        trimmed = self.customCountTrimming(aln = alignment, 
+                                           min_count = self.min_sequences_per_aln, 
+                                           custom_list = self.customlist)
         if not trimmed:
             return None
 
@@ -532,7 +534,7 @@ class Missingdata(Deletion):
     def _update_custom_list(self, headers_f_joined):
 
         headers_count = collections.Counter(headers_f_joined)
-        thresh = round( len(self.fasta) * self.min_prop_alns_per_sequence )
+        thresh = self.u_min_alns_per_sequence
         to_del = [k.strip().replace(">", "") for k,v in headers_count.items() if v < thresh]
 
         self.customlist += to_del
@@ -545,6 +547,9 @@ class Missingdata(Deletion):
         get the total number  from all alignments used as
         input
         """
+        if self.u_min_sequences_per_aln > self.min_sequences_per_aln:
+            self.min_sequences_per_aln = self.u_min_sequences_per_aln
+
         headers_f = list( filter(None, all_headers) )
 
         if not headers_f:
@@ -553,12 +558,6 @@ class Missingdata(Deletion):
         headers_f_joined = []
         for h in headers_f:
             headers_f_joined.extend(h)
-        
-        headers_uniq = set(headers_f_joined)
-        new_min_seqs_per_aln = round( len(headers_uniq) * self.min_prop_sequences_per_aln )
-
-        if new_min_seqs_per_aln > self.min_sequences_per_aln:
-            self.min_sequences_per_aln = new_min_seqs_per_aln
 
         self._update_custom_list(headers_f_joined)
 
@@ -616,7 +615,7 @@ class Missingdata(Deletion):
 
         with Pool(processes = self.threads) as p:
 
-            if self.min_prop_sequences_per_aln or self.min_prop_alns_per_sequence:
+            if self.u_min_sequences_per_aln or self.u_min_alns_per_sequence:
                 sys.stderr.write("\nMapping taxa...\r")
                 sys.stderr.flush()
 
@@ -627,14 +626,7 @@ class Missingdata(Deletion):
                 sys.stderr.flush()
 
             # descriptions = []
-            passed       = []
-
-            # for fasta in self.fasta:
-            #     preout = p.map_async(self.trimiterator, (fasta,)).get()[0]
-            #     if preout:
-            #         fasta, desc = preout
-            #         passed.append(fasta)
-            #         descriptions.append(desc)
+            passed = []
 
             preout = []
             for fasta in self.fasta:
@@ -660,7 +652,7 @@ class Missingdata(Deletion):
 
 # --- testings -- #
 # import glob
-# fastas = glob.glob("/Users/ulises/Desktop/test/mdata/*.fasta")
+# fastas = glob.glob("/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/*.fasta")
 # fastas = [
 #     '/Users/ulises/Desktop/test/mdata/E1532.fasta',
 #     '/Users/ulises/Desktop/test/mdata/E0219.fasta',
@@ -669,13 +661,13 @@ class Missingdata(Deletion):
 # # # fishlifeseq.headers(fastas[0])
 # custom_deletion_list = "/Users/ulises/Desktop/test/mdata/custom_deletion_list.txt"
 # self = Missingdata(
-#     custom_deletion_list=custom_deletion_list,
+#     custom_deletion_list=None,
 #     fastas=fastas,
 #     outputsuffix = "_trimmed.fasta",
 #     itrim= 0.6,
 #     vtrim= 0.5,
-#     min_prop_sequences_per_aln = 0.25,
-#     min_prop_alns_per_sequence = 0.25,
+#     min_sequences_per_aln = 30,
+#     min_alns_per_sequence = 1,
 #     codon_aware=True,
 #     threads= 3
 # )
