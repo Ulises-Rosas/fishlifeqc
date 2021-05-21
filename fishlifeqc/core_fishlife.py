@@ -633,6 +633,7 @@ def main():
                 outputsuffix = wholeargs.suffix, 
                 codon_aware  = wholeargs.codon_aware, # default false
                 stop_opt = wholeargs.stop_lib,
+                custom_deletion_list=wholeargs.add_deletion,
                 threads  = wholeargs.threads,
             )
 
