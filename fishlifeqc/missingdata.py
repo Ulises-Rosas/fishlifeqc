@@ -1,5 +1,6 @@
 
 import csv
+import re
 import sys
 import fishlifeseq
 import collections
@@ -53,6 +54,7 @@ class Missingdata(Deletion):
                 custom_deletion_list = None,
                 outputsuffix = "_trimmed", 
                 codon_aware = False,
+                unadjusted  = False,
                 stop_opt    = 1,
                 threads     = 1):
 
@@ -74,7 +76,7 @@ class Missingdata(Deletion):
         
         self.outputsuffix = outputsuffix
 
-
+        self.unadjusted = unadjusted
         self.codon_aware  = codon_aware
         #   |
         #    -> if codon_aware:
@@ -155,7 +157,11 @@ class Missingdata(Deletion):
         the gap proportion is more
         than the threshold value
 
-        2. Close only-gaps columns
+        2. Check if number of leftovers are 
+        are greater than minumum number 
+        allowed of sequences per alignment
+        
+        3. Close only-gaps columns
         by above move
 
         * If `aln` is empty, returns None
@@ -171,6 +177,9 @@ class Missingdata(Deletion):
                 out.update( {k:v}  )
 
         if not out:
+            return None
+
+        if len(out) < self.min_sequences_per_aln:
             return None
 
         return Missingdata.close_gaps(out, self.codon_aware)
@@ -417,15 +426,23 @@ class Missingdata(Deletion):
 
         return Missingdata._filter(idxs, aln, seqlength, offset)
         
-    def writeresults(self, obj, name):
+    def writeresults(self, file_aln):
+        # obj_name = file_aln[0]
+        # file_aln = file_aln[0]
 
-        outname = name + self.outputsuffix
+        if not file_aln:
+            return None
+
+        name,obj = file_aln
+        outname   = name + self.outputsuffix
 
         with open(outname, 'w') as f:
 
             for k,v in obj.items():
                 f.write( "%s\n%s\n" % (k,v))
 
+        return name
+        
     def verticalTrimming(self, aln: dict) -> dict:
         """
         Moves:
@@ -452,6 +469,24 @@ class Missingdata(Deletion):
                                     allowed_gap_prop = self.itrim)
         return trimmed
     
+    def pre_customCountTrimming(self, alignment):
+
+        trimmed = self.customCountTrimming(aln = alignment, 
+                                           min_count = self.min_sequences_per_aln, 
+                                           custom_list = self.customlist)
+        if not trimmed:
+            return None
+
+        # close possible only-gaps columns
+        # produced by `customCountTrimming` 
+        # (i.e., only-gap columns supported only by 
+        #        sequences belonging to `self.customlist`)
+        trimmed = self.close_gaps(aln = trimmed, is_codon_aware =  self.codon_aware)
+        if not trimmed:
+            return None 
+
+        return trimmed
+
     def trimiterator(self, fasta):
         """
         Main trimmer
@@ -501,17 +536,8 @@ class Missingdata(Deletion):
             return None
 
         # trim by count and a custom list
-        trimmed = self.customCountTrimming(aln = alignment, 
-                                           min_count = self.min_sequences_per_aln, 
-                                           custom_list = self.customlist)
-        if not trimmed:
-            return None
+        trimmed = self.pre_customCountTrimming(alignment)
 
-        # close possible only-gaps columns
-        # produced by `customCountTrimming` 
-        # (i.e., only-gap columns supported only by 
-        #        sequences belonging to `self.customlist`)
-        trimmed = self.close_gaps(aln = trimmed, is_codon_aware =  self.codon_aware)
         if not trimmed:
             return None
 
@@ -519,23 +545,31 @@ class Missingdata(Deletion):
         if not trimmed:
             return None
 
-        # horizontal trim, not length change
+        # horizontal trim, length might change upon closing gaps
         trimmed = self.horizontalTrimming(aln = trimmed)
         if not trimmed:
             return None
 
         if trimmed:
-            self.writeresults(trimmed, fasta)
+            # self.writeresults(trimmed, fasta)
 
-            return fasta
+            return (fasta, trimmed)
         else:
             return None
 
-    def _update_custom_list(self, headers_f_joined):
+    def _taxa_w_few_alns(self, headers_f_joined, change_headers = True):
 
         headers_count = collections.Counter(headers_f_joined)
         thresh = self.u_min_alns_per_sequence
-        to_del = [k.strip().replace(">", "") for k,v in headers_count.items() if v < thresh]
+
+        if change_headers:
+            return [k.strip().replace(">", "") for k,v in headers_count.items() if v < thresh]
+        else:
+            return [k for k,v in headers_count.items() if v < thresh]
+
+    def _update_custom_list(self, headers_f_joined):
+
+        to_del = self._taxa_w_few_alns(headers_f_joined)
 
         self.customlist += to_del
 
@@ -608,6 +642,31 @@ class Missingdata(Deletion):
         sys.stderr.write("\nReport written at %s\n" % MDATA_REPORT)
         sys.stderr.flush()
 
+    def post_customCountTrimming(self, file_aln):
+
+        file,aln  = file_aln
+        init_taxa = set(aln)
+
+        filtered_taxa     = init_taxa - self.customlist
+        len_filtered_taxa = len(filtered_taxa)
+
+        if len_filtered_taxa == len(init_taxa):
+            return file_aln
+
+        sys.stderr.write("Adjusting min. counts: %s\n" % file )
+        sys.stderr.flush()
+
+        if len_filtered_taxa < self.u_min_sequences_per_aln:
+            return None
+
+        trimmed = {k:aln[k] for k in filtered_taxa}
+        trimmed = self.close_gaps(aln = trimmed, is_codon_aware = self.codon_aware)
+
+        if not trimmed:
+            return None 
+        
+        return (file, trimmed)
+        
     def run(self):
         
         if not self.fasta:
@@ -625,22 +684,62 @@ class Missingdata(Deletion):
                 sys.stderr.write("Mapping taxa...Ok\n\n")
                 sys.stderr.flush()
 
-            # descriptions = []
-            passed = []
-
             preout = []
             for fasta in self.fasta:
                 result  = p.map_async(self.trimiterator, (fasta,))
                 preout.append(result)
+            
+            # to write out
+            file_aln = []
 
+            new_all_headers = []
             for pr in preout:
                 gotit = pr.get()[0]
                 if gotit:
-                    passed.append(gotit)
-                    # fasta, desc = gotit
-                    # passed.append(fasta)
-                    # descriptions.append(desc)
+                    _,aln = gotit
+                    new_all_headers.extend( list(aln) )
+                    file_aln.append( gotit )
 
+            # self.u_min_alns_per_sequence = 2
+
+            if not self.unadjusted:
+
+                any_taxa = self._taxa_w_few_alns(headers_f_joined = new_all_headers, 
+                                                change_headers   = False)            
+                if any_taxa:
+                    self.customlist = set(any_taxa)
+                    sys.stderr.write("\n\n")
+                    sys.stderr.flush()
+
+                    preout = []
+                    for fa in file_aln:
+                        result  = p.map_async(self.post_customCountTrimming, (fa,))
+                        preout.append(result)
+
+                    c_file_aln = []
+                    for pr in preout:
+                        gotit = pr.get()[0]
+                        if gotit:
+                            c_file_aln.append( gotit )
+
+                    file_aln = c_file_aln
+
+            sys.stderr.write("\nWriting results...\r")
+            sys.stderr.flush()
+
+            p_write = []
+            for fa in file_aln:
+
+                result = p.map_async(self.writeresults, (fa,))
+                p_write.append(result)
+
+            passed = []
+            for pw in p_write:
+                passed.append( pw.get()[0] )
+
+            sys.stderr.write("Writing results...Ok\n\n")
+            sys.stderr.flush()   
+    
         failed = set(self.fasta) - set(list(filter(None, passed)))
 
         if failed:
@@ -672,5 +771,4 @@ class Missingdata(Deletion):
 #     threads= 3
 # )
 # self.print_stop_lib()
-# print(self.min_count)
 # -- testings -- #

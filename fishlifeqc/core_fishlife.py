@@ -83,16 +83,23 @@ missingdata.add_argument('-m','--min_seqs_per_aln',
                     type = int,
                     default = 4,
                     help='''[Optional] Minimum number of sequences per alignments. 
-                            'qcutil stats' option '-a' might help to find this parameter [Default: %s]''' % 4)
+                            'qcutil stats' with the '-a' option might help to find this parameter [Default: %s]''' % 4)
 missingdata.add_argument('-w','--min_alns_per_seq',
                     metavar="",
                     type = int,
                     default = 1,
                     help='''[Optional] Minimum number of alignments per sequence.
-                            'qcutil stats' option '-s' might find this parameter [Default: %s]''' % 1)
+                            'qcutil stats' with the '-s' option might help to find this parameter [Default: %s]''' % 1)
 missingdata.add_argument('-c','--codon_aware',
                     action="store_true",
                     help='[Optional] If selected, trimming is done by codons')
+                    
+missingdata.add_argument('-u','--unadjusted',
+                    action="store_true",
+                    help='''[Optional] If selected, the number of sequences per alignment
+                    is not calculated after first trimming, and, thus, new deletions from the whole
+                    dataset are prevented. However, your whole dataset might end up having
+                    less alignments per sequence than proposed at `-w` option.''')
 missingdata.add_argument('-l', '--stop_lib',
                     metavar = "",
                     type    = int,
@@ -548,6 +555,11 @@ para.add_argument('-g', '--test_group',
                 help    = '''[Optional] Group to force monophyly. If this group is not 
                             present in a given gene tree, this gene tree is skipped from 
                             analyses [Default: None]''')
+para.add_argument('-o','--outfile',
+                   metavar="",
+                   type= str,
+                   default= "au_tests",
+                   help='[Optional] Out filename without extension [Default: au_tests]')
 para.add_argument('-n', '--threads',
                 metavar = "",
                 type    = int,
@@ -632,6 +644,7 @@ def main():
                 min_alns_per_sequence = wholeargs.min_alns_per_seq,
                 outputsuffix = wholeargs.suffix, 
                 codon_aware  = wholeargs.codon_aware, # default false
+                unadjusted= wholeargs.unadjusted,
                 stop_opt = wholeargs.stop_lib,
                 custom_deletion_list=wholeargs.add_deletion,
                 threads  = wholeargs.threads,
@@ -720,6 +733,7 @@ def main():
             evomodel        = wholeargs.evomol,
             codon_partition = wholeargs.codon_aware,
             iterations      = wholeargs.iterations,
+            out_report      = wholeargs.outfile,
             threads         = wholeargs.threads
         ).run()
 
