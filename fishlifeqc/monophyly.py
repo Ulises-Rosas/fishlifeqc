@@ -36,7 +36,7 @@ class Consel:
                 makermt_exe = MAKERMT,
                 consel_exe  = CONSEL,
                 catpv_exe   = CATPV,
-                out_report = "au_tests.csv",
+                out_report = "au_tests",
                 threads     = 1):
 
 
@@ -829,14 +829,14 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             return ( failed, None )
 
     def _write_au_table(self, au_table):
-        out_file = "au_table.csv" 
+        out_file = self.out_report + ".tsv"
 
         out = [["exon", "sequence", "node_group", "paraphyletic_group", "au_tested"]]
         out += au_table
 
         if len(out) > 1:
             with open( out_file , 'w' ) as f:
-                writer = csv.writer(f)
+                writer = csv.writer(f, delimiter = "\t")
                 writer.writerows(out)
 
             sys.stdout.write("\n\nReport of AU tests written at %s\n" % out_file)
@@ -844,7 +844,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
     def _write_failures(self, raxml_failures, au_failures):
 
-        out_file = "para_errors.csv" 
+        out_file = self.out_report + "_errors.tsv"
 
         out = [[ "exon", "where" ]]
         if raxml_failures:
@@ -857,7 +857,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
         if len(out) > 1:
             with open( out_file , 'w' ) as f:
-                writer = csv.writer(f)
+                writer = csv.writer(f, delimiter = "\t")
                 writer.writerows(out)
 
             sys.stdout.write("\n\nReport of errors written at %s\n" % out_file)
