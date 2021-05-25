@@ -558,8 +558,8 @@ para.add_argument('-g', '--test_group',
 para.add_argument('-o','--outfile',
                    metavar="",
                    type= str,
-                   default= "au_tests",
-                   help='[Optional] Out filename without extension [Default: au_tests]')
+                   default= "au_tests.tsv",
+                   help='[Optional] Out filename [Default: au_tests.tsv]')
 para.add_argument('-n', '--threads',
                 metavar = "",
                 type    = int,

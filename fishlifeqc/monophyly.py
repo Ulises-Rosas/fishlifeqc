@@ -844,7 +844,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
 
     def _write_failures(self, raxml_failures, au_failures):
 
-        out_file = self.out_report + "_errors.tsv"
+        out_file = self.out_report.split(".")[0] + "_errors.tsv"
 
         out = [[ "exon", "where" ]]
         if raxml_failures:
@@ -937,16 +937,16 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             self._write_au_table(au_test_table)
             self._write_failures(rax_failed, au_failed)
 
-# taxonomyfile = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/tax_file.csv"
+# taxonomyfile = "/Users/ulises/Desktop/GOL/software/fishlifeqc/taxa_file_no_neoteleostei.csv"
 # self = Monophyly(
-#         path= "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para",
-#         fasta_extension=".fasta",
-#         tree_extension=".tree",
+#         path= "/Users/ulises/Desktop/GOL/software/fishlifeqc",
+#         fasta_extension=".listd_allsets.NT_aligned_renamed.fasta_trimmed_round2",
+#         tree_extension=".listd_allsets.NT_aligned_renamed.fasta_trimmed_round2.raxml.rba.raxml.bestTree",
 #         taxonomyfile = taxonomyfile,
 
 #         collapsebylen = False, # for collapse
 #         minlen = 0.000001,     # for collapse
-#         collpasebysupp = True, # for collapse
+#         collpasebysupp = False, # for collapse
 #         minsupp = 0,           # for collapse
 
 #         recycle_monos = False, # internal default
