@@ -829,7 +829,7 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
             return ( failed, None )
 
     def _write_au_table(self, au_table):
-        out_file = self.out_report + ".tsv"
+        out_file = self.out_report 
 
         out = [["exon", "sequence", "node_group", "paraphyletic_group", "au_tested"]]
         out += au_table
