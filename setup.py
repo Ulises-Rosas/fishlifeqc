@@ -47,8 +47,8 @@ else:
     exit()
 
 ext_modules = [
-              Extension('runshell', sources = ["./fishlifeqc/runshell.c"]),
-              Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"])
+              Extension('runshell', sources = ["./fishlifeqc/runshell.c"], extra_compile_args=['-std=c99']),
+              Extension('fishlifeseq', sources= ["./fishlifeqc/sequtils.c"], extra_compile_args=['-std=c99'])
               ]
 
 dependencies = [
