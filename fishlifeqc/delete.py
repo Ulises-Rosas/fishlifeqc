@@ -45,9 +45,7 @@ class Deletion:
 
     def readcontrolfile(self):
 
-        if self.filetype == 'list':
-
-            self.customlist = [i.strip() for i in open(self.controlfile, 'r').readlines()]
+        self.customlist = [i.strip() for i in open(self.controlfile, 'r').readlines()]
 
     def prot_headers(self, file):
 
@@ -66,6 +64,9 @@ class Deletion:
                     f.write("%s\n%s\n" % (k,v))
 
     def headers(self):
+
+        if not self.sequences:
+            return None
 
         self.readcontrolfile()
 
@@ -139,14 +140,12 @@ class Deletion:
 
         return aln
 
-# Deletion(
-#     sequences   =  ['data/COI.NT_aligned.fasta_trimmed',
-#                     'data/E0537.NT_aligned.fasta_trimmed',
-#                     'data/E1718.NT_aligned.fasta_trimmed'],
-#     controlfile =  "head_headers_per_exon.csv",
-#     filetype    = 'list',
-#     threads     =  2
-# ).header_exon()
+# self = Deletion(
+#     sequences   =  ['../scripts/E0085.listd_allsets.NT_aligned_renamed.fasta_trimmed_round2_listdno_lava'],
+#     controlfile =  "./../scripts/custom_deletion_list.txt",
+#     filetype    = '_listd',
+#     threads     =  1
+# )
 # """
 # Microstomatidae_Nansenia_ardesiaca_EPLATE_46_F04
 # Opisthoproctidae_Rhynchohyalus_natalensis_EPLATE_49_G08

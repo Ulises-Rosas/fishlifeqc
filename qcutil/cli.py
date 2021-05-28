@@ -2,6 +2,8 @@
 
 import argparse
 from qcutil.summarize import Stats,Incongruence
+from fishlifeqc.delete import Deletion
+
 
 ITT_OUTFILENAME = "support_tt.tsv"
 RF_OUTFILENAME = "RF_distance.tsv"
@@ -120,6 +122,61 @@ rf.add_argument('-n', '--threads',
                  help    = '[Optional] number of cpus [Default = 1]')
 # RF --------------------------------------------------------------------------
 
+# delete --------------------------------------------------------------------------
+delete = subparsers.add_parser('delete', 
+                                help = "Delete specific sequences from files",
+                                formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                description="""
+
+            Delete specific sequences from multiple files
+
+    * Standard usage:
+
+        $ deleteheaders.py [exon files] -c [control file]
+
+            Where the control file is a simple list of 
+            sequences to be deleted in plain text
+
+    * Specify number of threads:
+
+        $ deleteheaders.py [exon files] -c [control file] -n 5
+
+    * Delete specific headers per exon:
+
+        $ deleteheaders.py -e -c [control file] -n 5
+
+            Where `control file` has the following format:
+                [exon 1],[header 1]
+                [exon 1],[header 2]
+                [exon 2],[header 1]
+                [exon 3],[header 1]
+                ...     ,...
+""")
+delete.add_argument('filenames',
+                    metavar="",
+                    type=str,
+                    nargs="*",
+                    help='Filenames')
+delete.add_argument('-e','--exon_header',
+                    action="store_true",
+                    help='''[Optional] If selected, delete by control file only''')
+delete.add_argument('-c','--controlfile',
+                    metavar="",
+                    default = None,
+                    required= True,
+                    help='[Optional] Control file with the list of species')
+delete.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] number of cpus [Default = 1]')
+delete.add_argument('-s','--suffix',
+                    metavar="",
+                    type= str,
+                    default= "_listd",
+                    help='[Optional] Suffix for outputs [Default: _listd]')
+# delete --------------------------------------------------------------------------
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -155,6 +212,23 @@ def main():
 
         ).get_rf( outfile = wholeargs.out )
 
+    elif wholeargs.subcommand == "delete":
+
+        if wholeargs.exon_header:
+            Deletion(
+                sequences   = None,
+                controlfile = wholeargs.controlfile,
+                filetype    = wholeargs.suffix,
+                threads     = wholeargs.threads 
+            ).header_exon()
+
+        else:
+            Deletion(
+                sequences   = wholeargs.filenames,
+                controlfile = wholeargs.controlfile,
+                filetype    = wholeargs.suffix,
+                threads     = wholeargs.threads 
+            ).headers()
 
 if __name__ == "__main__":
     main()
