@@ -1,6 +1,6 @@
-
+import os
 import csv
-import re
+# import re
 import sys
 import fishlifeseq
 import collections
@@ -9,6 +9,7 @@ from fishlifeqc.utils import isfasta, fas_to_dic
 from fishlifeqc.delete import Deletion
 
 FAILEDTOTRIM = "no_passed_trimming.txt"
+HTRIMMED = "horizontally_trimmed.tsv"
 MDATA_REPORT = "mdata_report.csv"
 
 # source https://github.com/biopython/biopython/blob/master/Bio/Data/CodonTable.py
@@ -75,6 +76,8 @@ class Missingdata(Deletion):
         self.min_sequences_per_aln = 4 # safe internal default
         
         self.outputsuffix = outputsuffix
+
+        self.horizontally_trimmed = HTRIMMED
 
         self.unadjusted = unadjusted
         self.codon_aware  = codon_aware
@@ -149,7 +152,7 @@ class Missingdata(Deletion):
         plt.show()
         plt.close()
 
-    def horizontalTrimming(self, aln):
+    def horizontalTrimming(self, aln, fasta_base):
         """ 
         Moves:
 
@@ -175,6 +178,14 @@ class Missingdata(Deletion):
         for k,v in aln.items():
             if v.count('-')/seqlength <= self.htrim:
                 out.update( {k:v}  )
+        
+        extracted = set(aln) - set(out)
+        if extracted:
+            rows = [ [fasta_base, i.replace(">", "")] for i in extracted ] 
+
+            with open( self.horizontally_trimmed, 'a' ) as f:
+                writer = csv.writer(f, delimiter = "\t")
+                writer.writerows( rows )
 
         if not out:
             return None
@@ -520,8 +531,8 @@ class Missingdata(Deletion):
         a base to any surrounding codons.
         """
 
-
-        sys.stderr.write("Trimming: %s\n" % fasta )
+        fasta_base = os.path.basename(fasta)
+        sys.stderr.write("Trimming: %s\n" % fasta_base)
         sys.stderr.flush()
 
         # fasta = self.fasta[6]
@@ -546,7 +557,7 @@ class Missingdata(Deletion):
             return None
 
         # horizontal trim, length might change upon closing gaps
-        trimmed = self.horizontalTrimming(aln = trimmed)
+        trimmed = self.horizontalTrimming(aln = trimmed, fasta_base= fasta_base)
         if not trimmed:
             return None
 
@@ -671,6 +682,10 @@ class Missingdata(Deletion):
         
         if not self.fasta:
             return None
+
+        with open( self.horizontally_trimmed, 'w') as f:
+            writer = csv.writer(f, delimiter = "\t")
+            writer.writerows( [['exon', 'sequence']] )
 
         with Pool(processes = self.threads) as p:
 
