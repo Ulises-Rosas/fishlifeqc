@@ -923,139 +923,63 @@ class TreeExplore:
 
             out = [ ['file','original','P_tax','delete_inside_t', 'delete_outside_t','reason'] ]
             for p in preout:
-                if p.get():
-                    out.extend( p.get() )
+                gotit = p.get()
+                if gotit:
+                    out.extend( gotit )
 
         if len(out) > 1:
             with open(self.outfilename, 'w') as f:
                 writer = csv.writer(f)
                 writer.writerows(out)
 
-                sys.stdout.write( "\nReport written at %s\n" % self.outfilename )
+            sys.stdout.write( "\nReport written at %s\r" % self.outfilename )
+            sys.stdout.flush()
 
-    def _rename_tips(self, file_tree):
-        # file_tree = '../E0012.listd_allsets.NT_aligned.fasta_trimmed.nex.treefile'
+            self._expand_tlike_table(out)
 
-        bmfile = os.path.basename( file_tree )
-        sys.stderr.write("Processing: %s\n" % bmfile)
-        sys.stderr.flush()
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
-        tree = dendropy.Tree.get(
-                    path   = file_tree,
-                    schema = self.schema,
-                    preserve_underscores = True)
+    def _expand_tlike_table(self, tlike_out):
 
-        tree.as_string(schema = self.schema)
+        dirname       = os.path.dirname(self.outfilename)
+        basename      = os.path.basename(self.outfilename)
+        expanded_name =  os.path.join(dirname, "collapsed_" + basename)
 
-        name_set = self._taxa
+        myrows = [('file', 'sequences', 'delete_type')]
 
-        for i in range(len(tree.taxon_namespace)):
-            tipname = tree.taxon_namespace[i].label
-            if name_set.__contains__(tipname):
-                tree.taxon_namespace[i].label = name_set[tipname]
+        for row in tlike_out[1::]:
 
-        tree.write(path = file_tree + self.suffix, schema = 'newick')
+            file      = row[0]
+            del_in    = row[3]
+            del_out   = row[4]
+            del_clade = []
 
-    def rename_tips(self):
+            if del_in:
+                del_clade.extend(
+                    [ (file, i, 'delete_inside_t') for i in del_in.split(",") ]
+                )
+            if del_out:
+                del_clade.extend(
+                    [ (file, i, 'delete_outside_t') for i in del_out.split(",") ]
+                )
 
-        if not self.taxonomyfile:
-            sys.stderr.write("No taxonomy file provided\n")
-            sys.stderr.flush()
-            return None
-
-        self._taxa
-
-        with Pool(processes = self.threads) as p:
-            for file_tree in self.treefiles:
-                p.apply_async(self._rename_tips, (file_tree,)).get()
+            if del_clade:
+                myrows.extend(del_clade)
 
 
-# [i.taxon for i in tree.leaf_node_iter()]
+        if len(myrows) > 1:
+            with open(expanded_name, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerows(myrows)
 
+            sys.stdout.write( "Report written at %s and %s\n" % (self.outfilename, expanded_name) )
+            sys.stdout.flush()
+                    
 # self = TreeExplore(
 #     taxnomyfile= "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/tlike/taxa_file.csv", 
 #     outgroup= None,
 #     collpasebysupp=True,
 #     treefiles=['/Users/ulises/Desktop/E0713.listd_allsets.NT_aligned.fasta_trimmed.nex.tree']
 # )
-
 # self.find_Tlikes()
-
-# def getOpts():
-
-#     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-#                                      description="""
-
-#                         t_like.py [tree files]
-                        
-#                                      """)
-#     parser.add_argument('treefiles',
-#                         nargs="+",
-#                         help='Filenames')
-#     parser.add_argument('-t','--taxonomyfile',
-#                         metavar="",
-#                         type= str,
-#                         help='Taxonomy file [Default: None]') 
-#     parser.add_argument('-g','--outgroup',
-#                         metavar="",
-#                         type= str,
-#                         help='Outgroup taxa [Default: None]')
-#     parser.add_argument('-f','--format',
-#                         metavar="",
-#                         type= str,
-#                         default= "newick",
-#                         help='[Optional] Tree format [Default: newick]') 
-#     parser.add_argument('-l','--collapse_bylen',
-#                         action="store_true",
-#                         help='''[Optional] If selected, collapse internal branches by length''')
-#     parser.add_argument('-L', '--min_len',
-#                         metavar = "",
-#                         type    = float,
-#                         default = 0.000001,
-#                         help    = '[Optional] minimun branch length to collapse internal branch [Default: 0.000001]')
-#     parser.add_argument('-s','--collapse_bysupp',
-#                         action="store_false",
-#                         help='''[Optional] If selected, collapse internal branches by support value''')
-#     parser.add_argument('-S', '--min_supp',
-#                         metavar = "",
-#                         type    = float,
-#                         default = 0,
-#                         help    = '[Optional] minimun support value to collapse internal branch [Default: 0]')
-#     parser.add_argument('-o','--outfile',
-#                         metavar="",
-#                         type= str,
-#                         default= "t_like.csv",
-#                         help='[Optional] Out filename [Default: t_like.csv]')
-#     parser.add_argument('-a','--suffix',
-#                         metavar="",
-#                         type= str,
-#                         default= "_fishlife",
-#                         help='[Optional] Append a suffix at output files [Default: _fishlife]')         
-#     parser.add_argument('-n', '--threads',
-#                         metavar = "",
-#                         type    = int,
-#                         default = 1,
-#                         help    = '[Optional] number of cpus [Default: 1]')          
-
-#     args = parser.parse_args()
-#     return args
-
-# def main():
-#     args = getOpts()
-#     # print(args)
-#     TreeExplore(
-#         treefiles      = args.treefiles,
-#         schema         = args.format,
-#         collpasebylen  = args.collapse_bylen, # default: false
-#         minlen         = args.min_len,
-#         collpasebysupp = args.collapse_bysupp, # default: false
-#         minsupp        = args.min_supp,
-#         taxnomyfile    = args.taxonomyfile,
-#         outgroup       = args.outgroup,
-#         suffix         = args.suffix, 
-#         threads        = args.threads,
-#         outfilename    = args.outfile
-#     ).find_Tlikes()
-
-# if __name__ == "__main__":
-#     main()

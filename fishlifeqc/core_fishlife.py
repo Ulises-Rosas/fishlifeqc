@@ -367,8 +367,8 @@ tlike.add_argument('-f','--format',
 tlike.add_argument('-o','--outfile',
                     metavar="",
                     type= str,
-                    default= "t_like.csv",
-                    help='[Optional] Out filename [Default: t_like.csv]')
+                    default= "t_like_table.csv",
+                    help='[Optional] Out filename [Default: t_like_table.csv]')
 tlike.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
