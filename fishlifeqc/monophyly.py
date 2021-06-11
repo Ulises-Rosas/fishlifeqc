@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import csv
+import glob
 import collections
 
 import dendropy
@@ -646,31 +647,27 @@ class Monophyly(TreeExplore, BLCorrelations, Consel):
         sorted_taxa =  sorted(c_taxa, key = lambda kv: kv[1], reverse = True)
         return [g for g,_ in sorted_taxa]
 
+    def _base_names_glob(self, ext):
+        out = []
+        
+        glob_files = glob.glob(os.path.join(self.path, "*%s" % ext))
+        for i in glob_files:
+            out.append( os.path.basename(i).replace(ext, "") )
+
+        return out
+
     def _readmetadata(self):
 
-        # self.path = "/Users/ulises/Desktop/GOL/software/fishlifeqc/test/para"
-        # myrows = []
-        # with open(self.metadata, 'r') as f:
-        #     reader = csv.reader(f)
-        #     for row in reader:
-        #         if not row[0].startswith("#"):
-        #             myrows.append(row)
-        # return myrows
-        files = []
-        for i in os.listdir(self.path):
-            if os.path.isfile( os.path.join(self.path, i ) ):
-                files.append(i)
-
-        trees = [i.replace(self.tree_ext , "") for i in files if re.findall(self.tree_ext, i)]
-        alns  = [i.replace(self.fast_ext, "") for i in files if re.findall(self.fast_ext, i)]
-
+        trees = self._base_names_glob(self.tree_ext)
+        alns  = self._base_names_glob(self.fast_ext)
+        
         base_count = collections.Counter(  trees + alns )
         pairs      = [k for k,v in base_count.items() if v == 2 ]
 
         if not pairs:
             sys.stderr.write("\nNo alignment-tree name coupling under given file extensions\n\n")
-            sys.stderr.write("  alignment extension : %s\n" % self.fast_ext)
-            sys.stderr.write("  tree extension      : %s\n" % self.tree_ext)
+            sys.stderr.write("  alignment extension : *%s\n" % self.fast_ext)
+            sys.stderr.write("  tree extension      : *%s\n" % self.tree_ext)
             sys.stderr.write("\nat '%s' directory\n\n" % self.path)
             sys.stderr.flush()
             exit()
