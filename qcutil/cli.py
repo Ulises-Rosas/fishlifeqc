@@ -3,6 +3,7 @@
 import argparse
 from qcutil.summarize import Stats,Incongruence
 from fishlifeqc.delete import Deletion
+from fishlifetraits.stats import Features
 
 
 ITT_OUTFILENAME = "support_tt.tsv"
@@ -16,7 +17,7 @@ subparsers = parser.add_subparsers(help='', dest='subcommand')
 
 
 # stats --------------------------------------------------------------------------
-describe = subparsers.add_parser('stats', help = "Summarize alignment information",
+describe = subparsers.add_parser('qstats', help = "quick summarize of alignment information",
                               formatter_class = argparse.RawDescriptionHelpFormatter, 
                               description="""
                               
@@ -50,6 +51,72 @@ describe.add_argument('-n', '--threads',
                     default = 1,
                     help    = '[Optional] number of cpus [Default = 1]')                        
 # stats --------------------------------------------------------------------------
+
+
+# fstats -------------------------------------------------------------------------
+fstats = subparsers.add_parser('fstats', help = "full summarize of both alignment and tree information",
+                              formatter_class = argparse.RawDescriptionHelpFormatter, 
+                              description="""
+                              
+                    Summarize both alignment and tree information
+
+Examples:
+
+    * Standard usage:
+
+        $ %(prog)s -A [alignment file extension] -T [tree file extension]
+
+            Where '-A' and '-T' indicate file extensions for alignments and 
+            trees, correspondingly.
+
+""")
+fstats.add_argument('-A','--aln',
+                    metavar="ext",
+                    type= str,
+                    # required=True,
+                    default=".fasta",
+                    help="Alignment file extension [Default = '.fasta']") 
+fstats.add_argument('-T','--tree',
+                    metavar="ext",
+                    type= str,
+                    # required=True,
+                    default=".tree",
+                    help="Tree file extension [Default = '.tree']")  
+fstats.add_argument('-t','--taxonomy',
+                    metavar="",
+                    type= str,
+                    required=False,
+                    help='[Optional] Taxonomy file')                      
+fstats.add_argument('-p','--path',
+                    metavar="",
+                    type= str,
+                    default=".",
+                    help="[Optional] Directory with trees and alignments [Default = '.']")   
+fstats.add_argument('-r','--reference',
+                     metavar="",
+                     type= str,
+                     default=None,
+                     help='[Optional] Reference tree file in newick format [Default: None]')
+fstats.add_argument('-g','--group',
+                metavar='',
+                type= str,
+                default=None,
+                help='''[Optional] CSV-formated file containing alignmnet
+                        name and a label. This label is added as new column [Default: None]''')
+fstats.add_argument('-c','--codon_aware',
+                    action="store_true",
+                    help='[Optional] If selected, GC and Gap content are obtained by codons')
+fstats.add_argument('-s','--suffix', 
+                    metavar="",
+                    type = str,
+                    default='fstats.tsv',
+                    help='[Optional] suffix name for outputs [Default = fstats.tsv ]' )
+fstats.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] number of cpus [Default = 1]')          
+# fstats -----------------------------------------------------------------------
 
 # itt --------------------------------------------------------------------------
 itt = subparsers.add_parser('itt', help = "Incongruence through time",
@@ -181,7 +248,7 @@ def main():
 
     wholeargs = parser.parse_args()
 
-    if wholeargs.subcommand == "stats":
+    if wholeargs.subcommand == "qstats":
 
         Stats(
             fastas      = wholeargs.filenames,
@@ -190,6 +257,20 @@ def main():
             prefix      = wholeargs.prefix,
             threads     = wholeargs.threads
         ).run()
+
+    elif wholeargs.subcommand == "fstats":
+
+        Features(
+            taxonomyfile   = wholeargs.taxonomy,
+            path           = wholeargs.path,
+            fasta_ext      = wholeargs.aln,
+            tree_ext       = wholeargs.tree,
+            reference_tree = wholeargs.reference,
+            groups_file    = wholeargs.group,
+            codon_aware    = wholeargs.codon_aware,
+            threads        = wholeargs.threads,
+            suffix         = wholeargs.suffix,
+        ).write_stats()
 
     elif wholeargs.subcommand == "itt":
 
@@ -229,6 +310,7 @@ def main():
                 filetype    = wholeargs.suffix,
                 threads     = wholeargs.threads 
             ).headers()
+    
 
 if __name__ == "__main__":
     main()
