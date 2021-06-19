@@ -67,3 +67,11 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
 ```
+
+Yet unintegrated scripts into `qcutil`:
+
+* `merge.py` : join two set of exons by using a map file
+* `concatenate.py` : concatenate exons
+* `codon_partition.py` : generate a condon partition file
+* `cons_trees.py` : for each exon, constrain a reference tree by exon taxa
+* `collapse.py` : collapse edges in function of support values
