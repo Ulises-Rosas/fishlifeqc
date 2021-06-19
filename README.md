@@ -20,6 +20,7 @@ python3 -m pip install .
 
 ## Usage
 
+Main command:
 ```Bash
 fishlifeqc -h
 ```
@@ -42,4 +43,27 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
 
+```
+
+Utilities command:
+```Bash
+qcutil -h
+```
+
+```
+usage: qcutil [-h] {qstats,fstats,itt,rf,delete} ...
+
+                                 Utilities from fishlifeqc
+                                      
+
+positional arguments:
+  {qstats,fstats,itt,rf,delete}
+    qstats              quick summarize of alignment information
+    fstats              full summarize of both alignment and tree information
+    itt                 Incongruence through time
+    rf                  Robinson-Foulds distances
+    delete              Delete specific sequences from files
+
+optional arguments:
+  -h, --help            show this help message and exit
 ```
