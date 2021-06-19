@@ -184,7 +184,7 @@ class Missingdata(Deletion):
             rows = [ [fasta_base, i.replace(">", "")] for i in extracted ] 
 
             with open( self.horizontally_trimmed, 'a' ) as f:
-                writer = csv.writer(f, delimiter = "\t")
+                writer = csv.writer(f)
                 writer.writerows( rows )
 
         if not out:
