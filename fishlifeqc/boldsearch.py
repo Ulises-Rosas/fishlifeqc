@@ -22,7 +22,7 @@ class Taxonomychecks:
     @property
     def sppstax(self):
         
-        if self.taxonomyfile is None:
+        if not self.taxonomyfile:
             sys.stderr.write('Please introduce a proper taxonomy file\n')
             sys.stderr.flush()
             exit()
@@ -31,8 +31,8 @@ class Taxonomychecks:
         with open(self.taxonomyfile, 'r') as f:
             for l in f.readlines():
                 # print(l.strip().split(","))
-                seq, spps = l.strip().split(",")
-                out[seq] = spps
+                seq, spps = l.split(",")
+                out[seq.strip()] = spps.strip()
 
         return out
     
@@ -180,17 +180,25 @@ class Boldesearch:
             else:
                 df[seq] = { spps:tmp_perc }
 
-        return df
+        # order subdicts and fix objects
+        # into an inmutable type
+        inmutable_df = {}
+        for k,v in df.items():
+            inmutable_df[k] = sorted(v.items(), key = lambda kv: kv[1], reverse=True)
+
+        return inmutable_df
     
-    def classify(self, df, spps_aln):
+    def classify(self, df, spps_aln, tmp_fasta):
+        # df, spps_aln = mydf, spps_aln
         
         row    = []
-        ROWSTR = "{seq}\t{species}\t{matchtype}\n"
+        ROWSTR = "{seq}\t{seq_len}\t{species}\t{matchtype}\n"
 
         for k,v in spps_aln.items():
-
+            # k,v
+            seq_len = len(tmp_fasta[k])
             if df.__contains__(k):
-                spps_perc = dict( filter( lambda kv: kv[1] >= self.threshold, df[k].items() ) )
+                spps_perc = dict( filter( lambda kv: kv[1] >= self.threshold, df[k] ) )
 
                 if spps_perc:            
                     matched_spps = set(list(spps_perc))
@@ -201,35 +209,48 @@ class Boldesearch:
                             row.append(
                                 ROWSTR.format(
                                     seq = k,
+                                    seq_len = seq_len,
                                     species =  matched_spps.pop(),
                                     matchtype = 'match'))
                         else:
                             row.append(
                                 ROWSTR.format(
                                     seq = k,
+                                    seq_len = seq_len,
                                     species = ','.join(matched_spps),
                                     matchtype = 'ambiguous'))
                     else:
                         row.append(
                             ROWSTR.format(
                                 seq = k,
+                                seq_len = seq_len,
                                 species = ','.join(matched_spps),
                                 matchtype = 'mismatch'))         
                 else:
-                    bmatch = sorted(df[k], key = df[k].get, reverse = True)[0:3]
+                    # bmatch = sorted(df[k], key = df[k].get, reverse = True)[0:3]
+                    bmatch = [ i[0] for i in df[k][0:3] ]
                     row.append(
                         ROWSTR.format(
                             seq = k,
+                            seq_len = seq_len,
                             species = ','.join(bmatch),
                             matchtype = 'below %s' % self.threshold))
             else:
                 row.append(
                     ROWSTR.format(
                         seq = k,
+                        seq_len = seq_len,
                         species = 'NA',
                         matchtype = 'NA'))
 
         return row
+
+    def read_dealignment(self):
+        out = {}
+        for k,v in fas_to_dic(self.dealignment).items():
+            clean_key = k.replace(">", "").strip()
+            out[clean_key] = v
+        return out
 
     def id_engine(self):
 
@@ -239,12 +260,12 @@ class Boldesearch:
         
         # species-level dictionary
         spps_aln  = self.checkspps()
-        # whole fastas
-        tmp_fasta = fas_to_dic(self.dealignment)        
+        # whole fastas (clean keys without ">")
+        tmp_fasta = self.read_dealignment()
         # trimmed fasta
         with open(boldin, 'w') as f:
             for i in spps_aln:
-                f.write( ">%s\n%s\n" % ( i, tmp_fasta[">" + i] ) ) 
+                f.write( ">%s\n%s\n" % ( i, tmp_fasta[i] ) ) 
                 
         id_engine(query       = boldin, 
                   db          = self.bolddatabase,
@@ -254,10 +275,10 @@ class Boldesearch:
                   fileoutname = boldout)
         
         mydf       = self.dataframe(boldout)
-        classified = self.classify(mydf, spps_aln)
+        classified = self.classify(mydf, spps_aln, tmp_fasta)
         
         with open(classout, 'w') as f:
-            f.write("sequence\tbest_match\tmatch_type\n")
+            f.write("sequence\tsequence_length\tbest_match\tmatch_type\n")
             f.writelines(classified)
             
         if self.removeintermediate:            
@@ -265,3 +286,17 @@ class Boldesearch:
             os.remove(boldin)
             os.remove(boldout)
             os.remove(boldout + "_filtered")
+
+
+self =  Boldesearch(
+                 sequence = '/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/bold/coi.fasta',
+                 bolddatabase = 'COX1_SPECIES_PUBLIC',
+                 make_blast = False,
+                 quiet = False,
+                 taxonomyfile = '/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/bold/tax_file.txt',
+                 removeintermediate = True,
+                 threshold = 0.98,
+                 outfile = None)
+
+
+
