@@ -58,7 +58,6 @@ class Concatenate:
                     "DNA, %s_pos2 = %s-%s\\3\n" %(exonb, pos1 + 1, pos2),
                     "DNA, %s_pos3 = %s-%s\\3\n" %(exonb, pos1 + 2, pos2)
                     ])
-                pass
 
         else:
             if self.nexusformat:

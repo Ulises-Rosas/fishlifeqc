@@ -53,7 +53,7 @@ ext_modules = [
 
 dependencies = [
                 "boldminer", # own package
-                "fishlifetraits>=0.2.0", # own package
+                "fishlifetraits>=0.3.0", # own package
                 'dendropy==4.4.0'
                 ]
 

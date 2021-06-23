@@ -8,6 +8,7 @@ from fishlifeqc.boldsearch  import Boldesearch
 from fishlifeqc.t_like      import TreeExplore
 from fishlifeqc.bl          import BLCorrelations
 from fishlifeqc.monophyly   import Monophyly
+from fishlifeqc.symtests    import SymTests
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
 PB_THRESOLD         = 95.0
@@ -629,6 +630,76 @@ para_required.add_argument('-t','--taxonomyfile',
 para._action_groups.reverse()
 # para ------------------------------------------------------
 
+
+
+# srh       ------------------------------------------------------
+srh = subparsers.add_parser('srh',
+                                    help = "Test stationarity, reversevility and homogeinity",
+                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                    description="""
+        
+    Assessing Stationarity, Reversevility and Homogeneity assumptions
+
+        Symmetry tests based on:
+            * Bowker (1948) DOI: 10.1080/01621459.1948.10483284
+            * Stuart (1955)  DOI: 10.2307/2333387
+            * Ababneh et al. (2006) DOI: 10.1093/bioinformatics/btl064
+        
+        Code for maximum MPTS based on:
+            * Naser-Khdour et al. (2019) DOI: 10.1093/gbe/evz193
+
+Examples:
+
+    * Standard usage:
+
+        $ %(prog)s [sequences]
+
+    * Codon aware: 
+
+        $ %(prog)s [sequences] --codon_aware
+
+        note: A partition file with position
+              that passed test will be created
+""")
+
+srh.add_argument('sequences', 
+                    metavar='exons',
+                    nargs="*",
+                    type=str,
+                    help='''File names with sequences''')
+srh.add_argument('-t', '--symtype',
+                 metavar = "",
+                 type    = str,
+                 choices = ['sym', 'mar', 'int'],
+                 default = 'sym',
+                 help    = '''[Optional] symmetry test type. 
+                             Option are 'sym', 'mar' and 'int' [Default = sym]''')
+srh.add_argument('-p','--pval', 
+                  metavar="",
+                  type = float,
+                  default = 0.05,
+                  help='''[Optional] Threshold for P-values [Default: %s]''' % 0.05)
+srh.add_argument('-r','--raxml',
+                 action="store_false",
+                 help='''[Optional] If selected, partitions are raxml-formated''')
+srh.add_argument('-c','--codon_aware',
+                  action="store_true",
+                  help='[Optional] If selected, tests are done by codons')                 
+srh.add_argument('-s','--suffix', 
+                  metavar="",
+                  default = "SymTest",
+                  type= str,
+                  help='[Optional] Suffix for outfile name [Default: %s]' % "SymTest")
+srh.add_argument('-n', '--threads',
+                  metavar = "",
+                  type    = int,
+                  default = 1,
+                  help    = '[Optional] number of cpus [Default = 1]')
+# srh       ------------------------------------------------------
+
+
+
+
 def main():
 
     wholeargs = parser.parse_args()
@@ -736,6 +807,18 @@ def main():
             out_report      = wholeargs.outfile,
             threads         = wholeargs.threads
         ).run()
+
+    elif wholeargs.subcommand == 'srh':
+
+        SymTests(
+            sequences   = wholeargs.sequences,
+            codon_aware = wholeargs.codon_aware,
+            suffix      = wholeargs.suffix,
+            symtype     = wholeargs.symtype,
+            nexusformat = wholeargs.raxml,
+            pval        = wholeargs.pval,
+            threads     = wholeargs.threads,
+        ).main()
 
 if __name__ == "__main__":
     main()
