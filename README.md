@@ -7,14 +7,18 @@ Features:
 Software requierements:
 
 * pip
-* git
 
 ## Installation
 
-Get the development version:
-
+Using `pip`:
 ```Bash
-git clone https://github.com/Ulises-Rosas/fishlifeqc.git && cd fishlifeqc
+pip install fishlifeqc
+```
+
+Development version by using `git` and `pip` (optional):
+```Bash
+git clone https://github.com/Ulises-Rosas/fishlifeqc.git 
+cd fishlifeqc
 python3 -m pip install .
 ```
 
