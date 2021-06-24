@@ -39,11 +39,11 @@ positional arguments:
     tlike               Find T-like clades in trees
     bl                  Branch length ratios and correlations
     para                Test paraphyly with AU tests
-    srh                 Test stationarity, reversevility and homogeinity
+    srh                 Test stationarity, reversibility and homogeneity
 
 optional arguments:
   -h, --help            show this help message and exit
- ```
+```
 
 Utilities command:
 ```Bash
@@ -51,18 +51,19 @@ qcutil -h
 ```
 
 ```
-usage: qcutil [-h] {qstats,fstats,itt,rf,delete} ...
+usage: qcutil [-h] {qstats,fstats,itt,rf,delete,knockdown} ...
 
                                  Utilities from fishlifeqc
                                       
 
 positional arguments:
-  {qstats,fstats,itt,rf,delete}
-    qstats              quick summarize of alignment information
-    fstats              full summarize of both alignment and tree information
+  {qstats,fstats,itt,rf,delete,knockdown}
+    qstats              quick summary of alignment information
+    fstats              full summary of both alignment and tree information
     itt                 Incongruence through time
     rf                  Robinson-Foulds distances
     delete              Delete specific sequences from files
+    knockdown           Replace specific codon positions with gaps
 
 optional arguments:
   -h, --help            show this help message and exit

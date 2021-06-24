@@ -30,6 +30,16 @@ class SymTests(Features):
         self.notpassed = 'NotPassed_' + suffix + ".txt"
         self.threads   = threads
 
+
+        # knock down variables
+        self.path = '.'
+        self.controlfile = None
+        self.possible_codons = ['pos_1', 
+                                'pos_2', 
+                                'pos_3']
+
+
+
     def _write_fasta(self, aln, aln_file, pval):
         # aln_base = os.path.basename(aln_file)
         if pval and pval >= self.pval:
@@ -89,7 +99,7 @@ class SymTests(Features):
         if part_file:
 
             if self.nexusformat:
-                part_file = ["#nexus\n", "begin sets;\n"] + part_file
+                part_file = ["#nexus\n", "begin sets;\n"] + part_file + ['end;\n']
                 
             with open( outfile, 'w' ) as f:
                 for k,v in aln.items():
@@ -131,7 +141,7 @@ class SymTests(Features):
 
             if not passed:
                 with open( self.notpassed, 'a' ) as f:
-                    writer = csv.writer(f, delimiter = "\t")
+                    writer = csv.writer(f, delimiter = ",")
                     writer.writerows( [[ aln_base, SymPval, MarPval, IntPval ]] ) 
 
         else:
@@ -192,7 +202,7 @@ class SymTests(Features):
                     ])
 
                 with open( self.notpassed, 'a' ) as f:
-                    writer = csv.writer(f, delimiter = "\t")
+                    writer = csv.writer(f, delimiter = ",")
                     writer.writerows( not_passed_table ) 
 
     def init_files(self):
@@ -203,7 +213,7 @@ class SymTests(Features):
             col_names = [["alignment", "SymPval", "MarPval", "IntPval"]]
 
         with open(self.notpassed, "w") as f:
-            writer = csv.writer(f, delimiter = "\t")
+            writer = csv.writer(f, delimiter = ",")
             writer.writerows(col_names)
 
     def close_files(self):
@@ -241,7 +251,88 @@ class SymTests(Features):
                 pr.get()
 
         self.close_files()
-                
+
+    @property
+    def _control_file(self):
+
+        if not self.controlfile:
+            return None
+
+        # self.controlfile =  "/Users/ulises/Desktop/GOL/software/\
+        # fishlifeqc/demo/para/NotPassed_SymTest.txt"
+        df = {}
+        myrows = []
+
+        with open(self.controlfile, 'r') as f:
+            reader = csv.reader(f, delimiter = ",")
+            for row in reader:
+                myrows.append(row)
+
+        for i in myrows:
+            exon = i[0]
+            position = i[1]
+
+            if not position in self.possible_codons:
+                continue
+
+            if not df.__contains__(exon):
+                df[exon] = [position]
+
+            else:
+                df[exon] += [position]
+
+        return df    
+
+    def knockdown_iterator(self, aln_base):
+        # aln_file = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/E1381.fasta"
+        sys.stdout.write("Processing: %s\n" % aln_base)
+        sys.stdout.flush()
+
+        pos_rm = self._control_file[aln_base]
+
+        aln_file = os.path.join(self.path, aln_base)
+        aln = fas_to_dic(aln_file)
+        seq_len = len(next(iter(aln.values())))
+
+        os.rename(aln_file, "%s_%s" % (aln_file, self.suffix) )
+
+        if len(pos_rm) == 3:
+            return None
+
+        out = {}
+        for k,v in aln.items():
+
+            mystr = ""
+            for i in range(0, seq_len, 3):
+
+                F = '-' if 'pos_1' in pos_rm else v[i]
+                S = '-' if 'pos_2' in pos_rm else v[i + 1]
+                T = '-' if 'pos_3' in pos_rm else v[i + 2]
+                mystr += (F + S + T)
+
+            out[k] = mystr
+
+        with open(aln_file, 'w') as f:
+            for k,v in out.items():
+                f.write("%s\n%s\n" % (k,v))
+
+    def knockdown_columns(self, controlfile = None, path = "."):
+
+        self.path = path
+        self.controlfile = controlfile
+        # self.controlfile =  "/Users/ulises/Desktop/GOL/software/\
+        # fishlifeqc/demo/para/NotPassed_SymTest.txt"
+
+        with Pool(processes = self.threads) as p:
+
+            preout = []
+            for fa in list(self._control_file):
+                result  = p.map_async(self.knockdown_iterator, (fa,))
+                preout.append(result)
+
+            for pr in preout:
+                pr.get()
+
 # self = SymTests(symtype='sym')
 
 

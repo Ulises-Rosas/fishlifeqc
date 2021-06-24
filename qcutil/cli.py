@@ -13,7 +13,7 @@ subparsers = parser.add_subparsers(help='', dest='subcommand')
 
 
 # stats --------------------------------------------------------------------------
-describe = subparsers.add_parser('qstats', help = "quick summarize of alignment information",
+describe = subparsers.add_parser('qstats', help = "quick summary of alignment information",
                               formatter_class = argparse.RawDescriptionHelpFormatter, 
                               description="""
                               
@@ -50,8 +50,13 @@ describe.add_argument('-n', '--threads',
 
 
 # fstats -------------------------------------------------------------------------
-fstats = subparsers.add_parser('fstats', help = "full summarize of both alignment and tree information",
+fstats = subparsers.add_parser('fstats', help = "full summary of both alignment and tree information",
                               formatter_class = argparse.RawDescriptionHelpFormatter, 
+                              epilog = """
+* codon_aware: currently only GC and Gap content
+               can be obtained by codons
+
+""",
                               description="""
                               
                     Summarize both alignment and tree information
@@ -78,21 +83,21 @@ fstats.add_argument('-T','--tree',
                     # required=True,
                     default=".tree",
                     help="Tree file extension [Default = '.tree']")  
-fstats.add_argument('-t','--taxonomy',
-                    metavar="",
-                    type= str,
-                    required=False,
-                    help='[Optional] Taxonomy file')                      
 fstats.add_argument('-p','--path',
                     metavar="",
                     type= str,
                     default=".",
-                    help="[Optional] Directory with trees and alignments [Default = '.']")   
+                    help="[Optional] Path to above files [Default: '.']")   
+fstats.add_argument('-t','--taxonomy',
+                    metavar="",
+                    type= str,
+                    required=False,
+                    help='[Optional] Taxonomy file [Default: None]')                      
 fstats.add_argument('-r','--reference',
                      metavar="",
                      type= str,
                      default=None,
-                     help='[Optional] Reference tree file in newick format [Default: None]')
+                     help='[Optional] Reference tree [Default: None]')
 fstats.add_argument('-g','--group',
                 metavar='',
                 type= str,
@@ -101,12 +106,12 @@ fstats.add_argument('-g','--group',
                         name and a label. This label is added as new column [Default: None]''')
 fstats.add_argument('-c','--codon_aware',
                     action="store_true",
-                    help='[Optional] If selected, GC and Gap content are obtained by codons')
+                    help='[Optional] If selected, metrics are obtained by codons*')
 fstats.add_argument('-s','--suffix', 
                     metavar="",
                     type = str,
                     default='fstats.tsv',
-                    help='[Optional] suffix name for outputs [Default = fstats.tsv ]' )
+                    help='[Optional] suffix output names [Default = fstats.tsv ]' )
 fstats.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -195,18 +200,18 @@ delete = subparsers.add_parser('delete',
 
     * Standard usage:
 
-        $ deleteheaders.py [exon files] -c [control file]
+        $ %(prog)s [exon files] -c [control file]
 
             Where the control file is a simple list of 
             sequences to be deleted in plain text
 
     * Specify number of threads:
 
-        $ deleteheaders.py [exon files] -c [control file] -n 5
+        $ %(prog)s [exon files] -c [control file] -n 5
 
     * Delete specific headers per exon:
 
-        $ deleteheaders.py -e -c [control file] -n 5
+        $ %(prog)s -e -c [control file] -n 5
 
             Where `control file` has the following format:
                 [exon 1],[header 1]
@@ -239,6 +244,51 @@ delete.add_argument('-s','--suffix',
                     default= "_listd",
                     help='[Optional] Suffix for outputs [Default: _listd]')
 # delete --------------------------------------------------------------------------
+
+
+# knockdown --------------------------------------------------------------------------
+knockdown = subparsers.add_parser('knockdown', 
+                                help = "Replace specific codon positions with gaps",
+                                formatter_class = argparse.RawDescriptionHelpFormatter, 
+                                description="""
+
+            Replace codon positions with gap
+
+The input for this utility can be directly obtained from the
+`fishlifeqc srh` command
+
+    * Standard usage:
+
+        $ %(prog)s -c [control file]
+
+            Where `control file` has the following format:
+                [exon 1],'pos_1'
+                [exon 1],'pos_2'
+                [exon 2],'pos_3'
+                [exon 3],'pos_1'
+                 ...    , ...
+""")
+knockdown.add_argument('-c','--controlfile',
+                    metavar="",
+                    default = None,
+                    required= True,
+                    help='[Optional] Control file with the list of species')
+knockdown.add_argument('-p','--path',
+                    metavar="",
+                    type= str,
+                    default=".",
+                    help="[Optional] Path to exon files [Default: '.']")   
+knockdown.add_argument('-n', '--threads',
+                    metavar = "",
+                    type    = int,
+                    default = 1,
+                    help    = '[Optional] Number of cpus [Default = 1]')
+knockdown.add_argument('-s','--suffix',
+                    metavar="",
+                    type= str,
+                    default= "original",
+                    help='[Optional] Suffix for backups [Default: original]')
+# knockdown --------------------------------------------------------------------------
 
 def main():
 
@@ -313,7 +363,19 @@ def main():
                 filetype    = wholeargs.suffix,
                 threads     = wholeargs.threads 
             ).headers()
-    
+
+    elif wholeargs.subcommand == 'knockdown':
+        from fishlifeqc.symtests import SymTests
+
+        SymTests(
+            threads = wholeargs.threads,
+            suffix  = wholeargs.suffix
+            
+        ).knockdown_columns(
+            path = wholeargs.path,
+            controlfile = wholeargs.controlfile,
+        )
+            
 
 if __name__ == "__main__":
     main()
