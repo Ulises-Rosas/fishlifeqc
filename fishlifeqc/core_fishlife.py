@@ -2,13 +2,7 @@
 
 # import sys
 import argparse
-from fishlifeqc.pairedblast import Pairedblast
 from fishlifeqc.missingdata import Missingdata, STOP_CODON_TABLE
-from fishlifeqc.boldsearch  import Boldesearch
-from fishlifeqc.t_like      import TreeExplore
-from fishlifeqc.bl          import BLCorrelations
-from fishlifeqc.monophyly   import Monophyly
-from fishlifeqc.symtests    import SymTests
 
 PB_OUTPUTFILENAME   = "mismatch_pairedblastn.txt"
 PB_THRESOLD         = 95.0
@@ -630,22 +624,20 @@ para_required.add_argument('-t','--taxonomyfile',
 para._action_groups.reverse()
 # para ------------------------------------------------------
 
-
-
-# srh       ------------------------------------------------------
+# srh ------------------------------------------------------
 srh = subparsers.add_parser('srh',
-                                    help = "Test stationarity, reversevility and homogeinity",
-                                    formatter_class = argparse.RawDescriptionHelpFormatter, 
-                                    description="""
+                            help = "Test stationarity, reversibility and homogeneity",
+                            formatter_class = argparse.RawDescriptionHelpFormatter, 
+                            description="""
         
-    Assessing Stationarity, Reversevility and Homogeneity assumptions
+    Assessing Stationarity, Reversibility and Homogeneity (SRH) assumptions
 
         Symmetry tests based on:
             * Bowker (1948) DOI: 10.1080/01621459.1948.10483284
             * Stuart (1955)  DOI: 10.2307/2333387
             * Ababneh et al. (2006) DOI: 10.1093/bioinformatics/btl064
         
-        Code for maximum MPTS based on:
+        Code for maximum Match Pair Test of Symmetry based on:
             * Naser-Khdour et al. (2019) DOI: 10.1093/gbe/evz193
 
 Examples:
@@ -654,9 +646,18 @@ Examples:
 
         $ %(prog)s [sequences]
 
+    * Specify type of symmetry test:
+
+        $ %(prog)s [sequences] -t sym
+
+        note: there are three types: 'sym', 'mar', 'int'.
+              'sym' (symmetry) is usually enough to test SRH assumptions.
+              'mar' (marginal) approaches stationarity.
+              'int' (internal) approaches homogeneity.
+
     * Codon aware: 
 
-        $ %(prog)s [sequences] --codon_aware
+        $ %(prog)s [sequences] -c
 
         note: A partition file with position
               that passed test will be created
@@ -695,9 +696,7 @@ srh.add_argument('-n', '--threads',
                   type    = int,
                   default = 1,
                   help    = '[Optional] number of cpus [Default = 1]')
-# srh       ------------------------------------------------------
-
-
+# srh ------------------------------------------------------
 
 
 def main():
@@ -732,6 +731,7 @@ def main():
         init_class.run()
 
     elif wholeargs.subcommand == "rblast":
+        from fishlifeqc.pairedblast import Pairedblast
 
         Pairedblast(
             sequences = wholeargs.sequences,
@@ -742,6 +742,7 @@ def main():
         ).run()
 
     elif wholeargs.subcommand == "bold":
+        from fishlifeqc.boldsearch import Boldesearch
         
         Boldesearch(
             sequence           = wholeargs.sequence,
@@ -756,7 +757,8 @@ def main():
 
     elif wholeargs.subcommand == "tlike":
         # print(wholeargs)
-        
+        from fishlifeqc.t_like import TreeExplore
+
         TreeExplore(
             treefiles      = wholeargs.treefiles,
             schema         = wholeargs.format,
@@ -773,6 +775,7 @@ def main():
 
     elif wholeargs.subcommand == 'bl':
         # print(wholeargs)
+        from fishlifeqc.bl import BLCorrelations
 
         BLCorrelations(
             species_tree_file = wholeargs.reference,
@@ -788,6 +791,7 @@ def main():
 
     elif wholeargs.subcommand == 'para':
         # print(wholeargs)
+        from fishlifeqc.monophyly  import Monophyly
 
         Monophyly(
             path            = wholeargs.path,
@@ -809,6 +813,7 @@ def main():
         ).run()
 
     elif wholeargs.subcommand == 'srh':
+        from fishlifeqc.symtests import SymTests # expensive import
 
         SymTests(
             sequences   = wholeargs.sequences,

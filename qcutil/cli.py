@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-from qcutil.summarize import Stats,Incongruence
-from fishlifeqc.delete import Deletion
-from fishlifetraits.stats import Features
-
 
 ITT_OUTFILENAME = "support_tt.tsv"
 RF_OUTFILENAME = "RF_distance.tsv"
@@ -249,6 +245,7 @@ def main():
     wholeargs = parser.parse_args()
 
     if wholeargs.subcommand == "qstats":
+        from qcutil.summarize import Stats
 
         Stats(
             fastas      = wholeargs.filenames,
@@ -259,6 +256,8 @@ def main():
         ).run()
 
     elif wholeargs.subcommand == "fstats":
+
+        from fishlifetraits.stats import Features # expensive import
 
         Features(
             taxonomyfile   = wholeargs.taxonomy,
@@ -273,6 +272,7 @@ def main():
         ).write_stats()
 
     elif wholeargs.subcommand == "itt":
+        from qcutil.summarize import Incongruence
 
         Incongruence(
             gene_trees     = wholeargs.filenames,
@@ -283,6 +283,8 @@ def main():
         ).support_tt( outfile = wholeargs.out )
 
     elif wholeargs.subcommand == "rf":
+        from qcutil.summarize import Incongruence
+
         # print(wholeargs)
         Incongruence(
             gene_trees     = wholeargs.filenames,
@@ -294,6 +296,7 @@ def main():
         ).get_rf( outfile = wholeargs.out )
 
     elif wholeargs.subcommand == "delete":
+        from fishlifeqc.delete import Deletion
 
         if wholeargs.exon_header:
             Deletion(
