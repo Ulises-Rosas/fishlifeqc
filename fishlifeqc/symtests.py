@@ -34,9 +34,9 @@ class SymTests(Features):
         # knock down variables
         self.replace_char = 'N'
         self.controlfile = None
-        self.possible_codons = ['pos_1', 
-                                'pos_2', 
-                                'pos_3']
+        self.possible_codons = ['pos1', 
+                                'pos2', 
+                                'pos3']
 
 
 
@@ -56,12 +56,13 @@ class SymTests(Features):
 
     def _write_fasta_c(self, aln, seq_len, aln_file, symtype, pval_table):
 
-        aln_base = os.path.basename(aln_file)
+        # aln_base = os.path.basename(aln_file)
         outfile  = "%s_%s" % (aln_file, self.suffix)
+        outfile_base = os.path.basename(outfile)
 
-        pval_c1 = pval_table['pos_1'][symtype] 
-        pval_c2 = pval_table['pos_2'][symtype] 
-        pval_c3 = pval_table['pos_3'][symtype] 
+        pval_c1 = pval_table['pos1'][symtype] 
+        pval_c2 = pval_table['pos2'][symtype] 
+        pval_c3 = pval_table['pos3'][symtype] 
 
         part_file  = []
         not_passed = []
@@ -69,32 +70,32 @@ class SymTests(Features):
         if pval_c1 and pval_c1 >= self.pval:
 
             if self.nexusformat:
-                part_file.append("\tcharset pos_1 = %s: 1-%s\\3;\n" % (aln_base, seq_len))
+                part_file.append("\tcharset pos1 = %s: 1-%s\\3;\n" % (outfile_base, seq_len))
 
             else:
-                part_file.append("DNA, %s_pos1 = 1-%s\\3\n" % (aln_base, seq_len))        
+                part_file.append("DNA, %s_pos1 = 1-%s\\3\n" % (outfile_base, seq_len))        
         else:
-            not_passed.append('pos_1')
+            not_passed.append('pos1')
 
         if pval_c2 and pval_c2 >= self.pval:
 
             if self.nexusformat:
-                part_file.append("\tcharset pos_2 = %s: 2-%s\\3;\n" % (aln_base, seq_len))
+                part_file.append("\tcharset pos2 = %s: 2-%s\\3;\n" % (outfile_base, seq_len))
 
             else:
-                part_file.append("DNA, %s_pos2 = 2-%s\\3\n" % (aln_base, seq_len))
+                part_file.append("DNA, %s_pos2 = 2-%s\\3\n" % (outfile_base, seq_len))
         else:
-            not_passed.append('pos_2')
+            not_passed.append('pos2')
 
         if pval_c3 and pval_c3 >= self.pval:
 
             if self.nexusformat:
-                part_file.append("\tcharset pos_3 = %s: 3-%s\\3;\n" % (aln_base, seq_len))
+                part_file.append("\tcharset pos3 = %s: 3-%s\\3;\n" % (outfile_base, seq_len))
 
             else:
-                part_file.append("DNA, %s_pos3 = 3-%s\\3\n" % (aln_base, seq_len))
+                part_file.append("DNA, %s_pos3 = 3-%s\\3\n" % (outfile_base, seq_len))
         else:
-            not_passed.append('pos_3')
+            not_passed.append('pos3')
 
         if part_file:
 
@@ -161,19 +162,19 @@ class SymTests(Features):
              IntPval_pos3) = self._symmetries(all_pairs, codon3)
 
             pval_table = {
-                'pos_1': {
+                'pos1': {
                     'sym': SymPval_pos1,
                     'mar': MarPval_pos1,
                     'int': IntPval_pos1,
                 },
 
-                'pos_2': {
+                'pos2': {
                     'sym': SymPval_pos2,
                     'mar': MarPval_pos2,
                     'int': IntPval_pos2,
                 },
 
-                'pos_3': {
+                'pos3': {
                     'sym': SymPval_pos3,
                     'mar': MarPval_pos3,
                     'int': IntPval_pos3,
@@ -317,9 +318,9 @@ class SymTests(Features):
             mystr = ""
             for i in range(0, seq_len, 3):
 
-                F = self.r_char if 'pos_1' in pos_rm else v[i]
-                S = self.r_char if 'pos_2' in pos_rm else v[i + 1]
-                T = self.r_char if 'pos_3' in pos_rm else v[i + 2]
+                F = self.r_char if 'pos1' in pos_rm else v[i]
+                S = self.r_char if 'pos2' in pos_rm else v[i + 1]
+                T = self.r_char if 'pos3' in pos_rm else v[i + 2]
                 mystr += (F + S + T)
 
             trimmed[k] = mystr
@@ -348,3 +349,38 @@ class SymTests(Features):
 # self = SymTests(symtype='sym')
 
 
+# not_passed = '/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln/internally_trimmed/malns_36_mseqs_27/round2/no_lavaretus/srh_tests/NotPassed_SymTest.txt'
+# partitions = '/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln/internally_trimmed/malns_36_mseqs_27/round2/no_lavaretus/srh_tests/mypartitions.txt'
+
+# not_passed_rows = []
+# with open(not_passed, 'r') as f:
+#     reader = csv.reader(f, delimiter = ",")
+#     for row in reader:
+#         not_passed_rows.append(row)
+
+# not_passed_formated = ["%s_%s" % (i[0], i[1])  for i in not_passed_rows ]
+
+# import re
+
+# good_partitions = []
+# bad_partitions = []
+# with open(partitions, 'r') as f:
+#     for line in f.readlines():
+
+#         if not re.findall("=", line):
+#             good_partitions.append(line)
+#             bad_partitions.append(line)
+#         else:
+#             tmp_part = re.split("[ ]+", line)[2]
+
+#             if tmp_part in not_passed_formated:
+#                 bad_partitions.append(line)
+#             else:
+#                 good_partitions.append(line)
+
+
+# with open(partitions + "_bad_ones", 'w') as f:
+#     f.writelines(bad_partitions)
+
+# with open(partitions + "_good_ones", 'w') as f:
+#     f.writelines(good_partitions)

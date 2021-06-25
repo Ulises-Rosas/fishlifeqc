@@ -35,7 +35,7 @@ describe.add_argument('-a','--per_aln',
                         help=' If selected, summary information is done per alignment')
 describe.add_argument('-s','--per_seq',
                         action='store_true',
-                        help=' If selected, summary information is done per sequence')
+                        help=' If selected, summary information is done per species')
 describe.add_argument('-p','--prefix', 
                         metavar="",
                         type = str,
@@ -265,10 +265,10 @@ The input for this utility can be directly obtained from the
             as well as its codon positions (if any) should 
             be trimmed. This file has the following
             structure:
-                [exon 1],'pos_1'
-                [exon 1],'pos_2'
-                [exon 2],'pos_3'
-                [exon 3],'pos_1'
+                [exon 1],'pos1'
+                [exon 1],'pos2'
+                [exon 2],'pos3'
+                [exon 3],'pos1'
                  ...    , ...
 
     * Replacement with gaps:
