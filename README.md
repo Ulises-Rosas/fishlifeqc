@@ -67,7 +67,7 @@ positional arguments:
     itt                 Incongruence through time
     rf                  Robinson-Foulds distances
     delete              Delete specific sequences from files
-    knockdown           Replace specific codon positions with gaps
+    knockdown           Replace specific codon positions with 'N's
 
 optional arguments:
   -h, --help            show this help message and exit
