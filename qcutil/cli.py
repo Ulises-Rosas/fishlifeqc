@@ -248,36 +248,49 @@ delete.add_argument('-s','--suffix',
 
 # knockdown --------------------------------------------------------------------------
 knockdown = subparsers.add_parser('knockdown', 
-                                help = "Replace specific codon positions with gaps",
+                                help = "Replace specific codon positions with 'N's",
                                 formatter_class = argparse.RawDescriptionHelpFormatter, 
                                 description="""
 
-            Replace codon positions with gap
+            Replace codon positions with 'N's (or other character)
 
 The input for this utility can be directly obtained from the
 `fishlifeqc srh` command
 
     * Standard usage:
 
-        $ %(prog)s -c [control file]
+        $ %(prog)s [exon files] -c [control file]
 
-            Where `control file` has the following format:
+            Where `control file` specify which exon 
+            as well as its codon positions (if any) should 
+            be trimmed. This file has the following
+            structure:
                 [exon 1],'pos_1'
                 [exon 1],'pos_2'
                 [exon 2],'pos_3'
                 [exon 3],'pos_1'
                  ...    , ...
+
+    * Replacement with gaps:
+
+        $ %(prog)s [exon files] -c [control file] --char '-'
+
 """)
+
+knockdown.add_argument('filenames',
+                      metavar = 'file',
+                      nargs="+",
+                      help='Filenames')
 knockdown.add_argument('-c','--controlfile',
                     metavar="",
                     default = None,
                     required= True,
                     help='[Optional] Control file with the list of species')
-knockdown.add_argument('-p','--path',
+knockdown.add_argument('-l','--char',
                     metavar="",
                     type= str,
-                    default=".",
-                    help="[Optional] Path to exon files [Default: '.']")   
+                    default="N",
+                    help="[Optional] Character to replace with [Default: 'N']")   
 knockdown.add_argument('-n', '--threads',
                     metavar = "",
                     type    = int,
@@ -286,8 +299,8 @@ knockdown.add_argument('-n', '--threads',
 knockdown.add_argument('-s','--suffix',
                     metavar="",
                     type= str,
-                    default= "original",
-                    help='[Optional] Suffix for backups [Default: original]')
+                    default= "knockdown",
+                    help='[Optional] Suffix for outputs [Default: knockdown]')
 # knockdown --------------------------------------------------------------------------
 
 def main():
@@ -368,14 +381,15 @@ def main():
         from fishlifeqc.symtests import SymTests
 
         SymTests(
-            threads = wholeargs.threads,
-            suffix  = wholeargs.suffix
+            sequences = wholeargs.filenames,
+            threads   = wholeargs.threads,
+            suffix    = wholeargs.suffix
             
         ).knockdown_columns(
-            path = wholeargs.path,
             controlfile = wholeargs.controlfile,
+            replace_char = wholeargs.char,
         )
-            
+
 
 if __name__ == "__main__":
     main()

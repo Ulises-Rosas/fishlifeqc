@@ -32,7 +32,7 @@ class SymTests(Features):
 
 
         # knock down variables
-        self.path = '.'
+        self.replace_char = 'N'
         self.controlfile = None
         self.possible_codons = ['pos_1', 
                                 'pos_2', 
@@ -283,42 +283,54 @@ class SymTests(Features):
 
         return df    
 
-    def knockdown_iterator(self, aln_base):
+    def knockdown_iterator(self, aln_file):
         # aln_file = "/Users/ulises/Desktop/GOL/software/fishlifeqc/demo/para/E1381.fasta"
+        aln_base = os.path.basename(aln_file)
+        outfile  = "%s_%s" % (aln_file, self.suffix)
+
         sys.stdout.write("Processing: %s\n" % aln_base)
         sys.stdout.flush()
 
+        aln = fas_to_dic(aln_file)
+
+        if not self._control_file.__contains__(aln_file):
+
+            with open(outfile, 'w') as f:
+                for k,v in aln.items():
+                    f.write("%s\n%s\n" % (k,v)) 
+
+            return None
+
         pos_rm = self._control_file[aln_base]
 
-        aln_file = os.path.join(self.path, aln_base)
-        aln = fas_to_dic(aln_file)
-        seq_len = len(next(iter(aln.values())))
-
-        os.rename(aln_file, "%s_%s" % (aln_file, self.suffix) )
+        # aln_file = os.path.join(self.path, aln_base)
+        # aln = fas_to_dic(aln_file)
+        # os.rename(aln_file, "%s_%s" % (aln_file, self.suffix) )
 
         if len(pos_rm) == 3:
             return None
 
-        out = {}
+        seq_len = len(next(iter(aln.values())))
+        trimmed = {}
         for k,v in aln.items():
 
             mystr = ""
             for i in range(0, seq_len, 3):
 
-                F = '-' if 'pos_1' in pos_rm else v[i]
-                S = '-' if 'pos_2' in pos_rm else v[i + 1]
-                T = '-' if 'pos_3' in pos_rm else v[i + 2]
+                F = self.r_char if 'pos_1' in pos_rm else v[i]
+                S = self.r_char if 'pos_2' in pos_rm else v[i + 1]
+                T = self.r_char if 'pos_3' in pos_rm else v[i + 2]
                 mystr += (F + S + T)
 
-            out[k] = mystr
+            trimmed[k] = mystr
 
-        with open(aln_file, 'w') as f:
-            for k,v in out.items():
+        with open(outfile, 'w') as f:
+            for k,v in trimmed.items():
                 f.write("%s\n%s\n" % (k,v))
 
-    def knockdown_columns(self, controlfile = None, path = "."):
+    def knockdown_columns(self, controlfile = None, replace_char = 'N'):
 
-        self.path = path
+        self.r_char = replace_char
         self.controlfile = controlfile
         # self.controlfile =  "/Users/ulises/Desktop/GOL/software/\
         # fishlifeqc/demo/para/NotPassed_SymTest.txt"
@@ -326,7 +338,7 @@ class SymTests(Features):
         with Pool(processes = self.threads) as p:
 
             preout = []
-            for fa in list(self._control_file):
+            for fa in self.sequences:
                 result  = p.map_async(self.knockdown_iterator, (fa,))
                 preout.append(result)
 
