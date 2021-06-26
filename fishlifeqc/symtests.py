@@ -5,6 +5,8 @@ import csv
 import itertools
 from multiprocessing import Pool
 
+from numpy.lib.financial import rate
+
 from fishlifeqc.utils import fas_to_dic, remove_files
 from fishlifetraits.stats import Features
 
@@ -17,12 +19,16 @@ class SymTests(Features):
                 suffix      = 'SymTest',
                 symtype     = 'sym',
                 nexusformat = True,
+                write_bad   = False,
+                trim_seqs   = False,
                 pval        = 0.05,
                 threads     = 1):
 
         self.sequences   = sequences
         self.symtype     = symtype
         self.nexusformat = nexusformat
+        self.write_bad   = write_bad
+        self.trim_seqs   = trim_seqs
         self.pval        = pval
         self.codon_aware = codon_aware
 
@@ -30,6 +36,9 @@ class SymTests(Features):
         self.notpassed = 'NotPassed_' + suffix + ".txt"
         self.threads   = threads
 
+
+        self.trim_nex_format = "\tcharset {pos} = {file}: {pos_num}-{seq_len}\\{npart};\n"
+        self.trim_rax_format = "DNA, {file}_{pos} = {pos_num}-{seq_len}\\{npart}\n"
 
         # knock down variables
         self.replace_char = 'N'
@@ -52,64 +61,247 @@ class SymTests(Features):
             return True
 
         else:
+            if self.write_bad:
+                outfile_np = "%s_%s_NotPassed" % (aln_file, self.suffix)
+                # outfile = "%s_%s" % (aln_file, self.suffix)
+                with open(outfile_np, 'w') as f:
+                    for k,v in aln.items():
+                        f.write( "%s\n%s\n" % (k,v) )
+
             return False
 
-    def _write_fasta_c(self, aln, seq_len, aln_file, symtype, pval_table):
+    def trim_columns(self, to_rm, aln, seq_len):
 
-        # aln_base = os.path.basename(aln_file)
-        outfile  = "%s_%s" % (aln_file, self.suffix)
-        outfile_base = os.path.basename(outfile)
+        if to_rm:
+            trimmed = {}
+            for k,v in aln.items():
+                mystr = ""
+                for i in range(0, seq_len, 3):
 
-        pval_c1 = pval_table['pos1'][symtype] 
-        pval_c2 = pval_table['pos2'][symtype] 
-        pval_c3 = pval_table['pos3'][symtype] 
+                    F = '' if 'pos1' in to_rm else v[i]
+                    S = '' if 'pos2' in to_rm else v[i + 1]
+                    T = '' if 'pos3' in to_rm else v[i + 2]
+                    mystr += (F + S + T)
 
-        part_file  = []
-        not_passed = []
+                trimmed[k] = mystr
 
-        if pval_c1 and pval_c1 >= self.pval:
+            trimmed_len = len(next(iter(trimmed.values())))
 
-            if self.nexusformat:
-                part_file.append("\tcharset pos1 = %s: 1-%s\\3;\n" % (outfile_base, seq_len))
+            return (trimmed, trimmed_len)
+
+        else:
+            return (aln, seq_len)
+
+    def set_format(self, pos_num, file, seq_len, npart):
+
+        if self.nexusformat:
+
+            return self.trim_nex_format.format(
+                        pos     = "pos%s" % pos_num,
+                        file    = os.path.basename(file),
+                        pos_num = pos_num,
+                        seq_len = seq_len,
+                        npart   = npart
+                    )
+
+        else:
+            return self.trim_rax_format.format(
+                        pos     = "pos%s" % pos_num,
+                        file    = os.path.basename(file),
+                        pos_num = pos_num,
+                        seq_len = seq_len,
+                        npart   = npart
+                    )
+
+    def _create_part_and_trim(self, another_pval_table, seq_len, aln, aln_file):
+
+        passed_pos = []
+        not_passed_pos = []
+
+        outfile = "%s_%s" % (aln_file, self.suffix)
+        outfile_np = "%s_%s_NotPassed" % (aln_file, self.suffix)
+
+        for pos, pval in another_pval_table.items():
+
+            if pval and pval >= self.pval:
+                passed_pos.append(pos)
 
             else:
-                part_file.append("DNA, %s_pos1 = 1-%s\\3\n" % (outfile_base, seq_len))        
-        else:
-            not_passed.append('pos1')
+                not_passed_pos.append(pos)
 
-        if pval_c2 and pval_c2 >= self.pval:
+        passed_aln, passed_aln_len = self.trim_columns(not_passed_pos, aln, seq_len)
+        not_passed_aln, not_passed_aln_len = self.trim_columns(passed_pos, aln, seq_len)
 
-            if self.nexusformat:
-                part_file.append("\tcharset pos2 = %s: 2-%s\\3;\n" % (outfile_base, seq_len))
+        if passed_pos:
+            part_file = []
+            npart = len(passed_pos)
 
-            else:
-                part_file.append("DNA, %s_pos2 = 2-%s\\3\n" % (outfile_base, seq_len))
-        else:
-            not_passed.append('pos2')
+            for i in range(npart):
 
-        if pval_c3 and pval_c3 >= self.pval:
-
-            if self.nexusformat:
-                part_file.append("\tcharset pos3 = %s: 3-%s\\3;\n" % (outfile_base, seq_len))
-
-            else:
-                part_file.append("DNA, %s_pos3 = 3-%s\\3\n" % (outfile_base, seq_len))
-        else:
-            not_passed.append('pos3')
-
-        if part_file:
+                part_file.append( 
+                    self.set_format(
+                        pos_num = i + 1,
+                        file    = outfile, 
+                        seq_len = passed_aln_len, 
+                        npart   = npart
+                    )
+                )
 
             if self.nexusformat:
                 part_file = ["#nexus\n", "begin sets;\n"] + part_file + ['end;\n']
-                
+
+            with open( outfile + ".nex", 'w' ) as f:
+                f.writelines(part_file)
+
+            with open( outfile, 'w' ) as f:
+                for k,v in passed_aln.items():
+                    f.write( "%s\n%s\n" % (k,v) )
+
+        if self.write_bad and not_passed_pos:
+
+            part_file = []
+            npart = len(not_passed_pos)
+
+            for i in range(npart):
+
+                part_file.append( 
+                    self.set_format(
+                        pos_num = i + 1,
+                        file    = outfile_np, 
+                        seq_len = not_passed_aln_len, 
+                        npart   = npart
+                    )
+                )
+
+            if self.nexusformat:
+                part_file = ["#nexus\n", "begin sets;\n"] + part_file + ['end;\n']
+
+            with open( outfile_np + ".nex", 'w' ) as f:
+                f.writelines(part_file)
+
+            with open( outfile_np, 'w' ) as f:
+                for k,v in not_passed_aln.items():
+                    f.write( "%s\n%s\n" % (k,v) )
+
+        return not_passed_pos
+
+
+    def _create_part_files(self, another_pval_table, seq_len, aln, aln_file):
+
+        outfile    = "%s_%s" % (aln_file, self.suffix)
+        outfile_np = "%s_%s_NotPassed" % (aln_file, self.suffix)
+
+        # outfile_base = 'ads'
+        outfile_base = os.path.basename(outfile)
+        outfile_np_base = os.path.basename(outfile_np)
+
+        nex_format = "\tcharset {pos} = {file}: {pos_num}-{seq_len}\\3;\n"
+        rax_format = "DNA, {file}_{pos} = {pos_num}-{seq_len}\\3\n"
+
+        _passed_part = []
+        passed_pos = []
+        _not_passed_part = []
+        not_passed_pos = []
+
+        for pos, pval in another_pval_table.items():
+
+            pos_num = pos.replace("pos", "")
+            
+            if pval and pval >= self.pval:
+
+                if self.nexusformat:
+                    _passed_part.append( 
+                        nex_format.format(
+                                pos = pos, 
+                                pos_num = pos_num,
+                                file = outfile_base, 
+                                seq_len = seq_len
+                        )
+                    )
+                    
+                else:
+                    _passed_part.append(
+                        rax_format.format(
+                                pos = pos, 
+                                pos_num = pos_num,
+                                file = outfile_base, 
+                                seq_len = seq_len
+                            )
+                    )
+                passed_pos.append(pos)
+
+            else:
+                if self.nexusformat:
+                    _not_passed_part.append(
+                        nex_format.format(
+                            pos = pos, 
+                            pos_num = pos_num,
+                            file = outfile_np_base, 
+                            seq_len = seq_len
+                            )
+                        )
+
+                else:
+                    _not_passed_part.append(
+                        rax_format.format(
+                                pos = pos, 
+                                pos_num = pos_num,
+                                file = outfile_np_base, 
+                                seq_len = seq_len
+                                )
+                        )
+
+                not_passed_pos.append(pos)
+
+        if self.nexusformat:
+            if _passed_part:
+                _passed_part = ["#nexus\n", "begin sets;\n"] + _passed_part + ['end;\n']
+
+            if _not_passed_part:
+                _not_passed_part = ["#nexus\n", "begin sets;\n"] + _not_passed_part + ['end;\n']
+
+        if _passed_part:
             with open( outfile, 'w' ) as f:
                 for k,v in aln.items():
                     f.write( "%s\n%s\n" % (k,v) )
 
             with open( outfile + ".nex", 'w' ) as f:
-                f.writelines(part_file)
+                f.writelines(_passed_part)
 
-        return not_passed
+        if self.write_bad and _not_passed_part:
+
+            with open( outfile_np, 'w' ) as f:
+                for k,v in aln.items():
+                    f.write( "%s\n%s\n" % (k,v) )
+
+            with open( outfile_np + ".nex", 'w' ) as f:
+                f.writelines(_not_passed_part)
+
+        return not_passed_pos
+  
+    def _write_fasta_c(self, aln, seq_len, aln_file, symtype, pval_table):
+
+        another_pval_table = {
+            'pos1': pval_table['pos1'][symtype],
+            'pos2': pval_table['pos2'][symtype],
+            'pos3': pval_table['pos3'][symtype],
+        }
+
+        if self.trim_seqs:
+            return self._create_part_and_trim( 
+                        another_pval_table = another_pval_table,
+                        seq_len  = seq_len, 
+                        aln      = aln,
+                        aln_file = aln_file
+                    )
+
+        else:
+            return self._create_part_files(             
+                            another_pval_table = another_pval_table, 
+                            seq_len  = seq_len,
+                            aln      = aln,
+                            aln_file = aln_file,
+                        )
 
     def sym_iterator(self, aln_file):
         # aln_file = "/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln\
@@ -346,7 +538,7 @@ class SymTests(Features):
             for pr in preout:
                 pr.get()
 
-# self = SymTests(symtype='sym')
+# self = SymTests(symtype='sym', write_bad=True)
 
 
 # not_passed = '/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln/internally_trimmed/malns_36_mseqs_27/round2/no_lavaretus/srh_tests/NotPassed_SymTest.txt'

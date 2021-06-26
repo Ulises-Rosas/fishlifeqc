@@ -686,6 +686,12 @@ srh.add_argument('-r','--raxml',
 srh.add_argument('-c','--codon_aware',
                   action="store_true",
                   help='[Optional] If selected, tests are done by codons')                 
+srh.add_argument('-w','--write_bad',
+                  action="store_true",
+                  help='[Optional] If selected, not passing sequences are written')
+srh.add_argument('-d','--trim_seqs',
+                  action="store_true",
+                  help='[Optional] If selected, trim not passing codon positions')
 srh.add_argument('-s','--suffix', 
                   metavar="",
                   default = "SymTest",
@@ -823,6 +829,8 @@ def main():
             nexusformat = wholeargs.raxml,
             pval        = wholeargs.pval,
             threads     = wholeargs.threads,
+            write_bad   = wholeargs.write_bad,
+            trim_seqs   = wholeargs.trim_seqs,
         ).main()
 
 if __name__ == "__main__":
