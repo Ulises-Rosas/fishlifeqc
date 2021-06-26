@@ -62,7 +62,7 @@ class Concatenate:
         else:
             if self.nexusformat:
                 out.append(
-                    "\tcharset %s = %s: %s-%s;\n" % (exonb, exon, pos1, pos2)
+                    "\tcharset %s = %s-%s;\n" % (exonb, pos1, pos2)
                 )
             else:
                 out.append(
