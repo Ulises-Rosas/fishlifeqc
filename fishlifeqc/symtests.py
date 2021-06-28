@@ -5,8 +5,6 @@ import csv
 import itertools
 from multiprocessing import Pool
 
-from numpy.lib.financial import rate
-
 from fishlifeqc.utils import fas_to_dic, remove_files
 from fishlifetraits.stats import Features
 
@@ -19,6 +17,7 @@ class SymTests(Features):
                 suffix      = 'SymTest',
                 symtype     = 'sym',
                 nexusformat = True,
+                isaminoacid = False,
                 write_bad   = False,
                 trim_seqs   = False,
                 pval        = 0.05,
@@ -27,6 +26,7 @@ class SymTests(Features):
         self.sequences   = sequences
         self.symtype     = symtype
         self.nexusformat = nexusformat
+        self.isaminoacid = isaminoacid
         self.write_bad   = write_bad
         self.trim_seqs   = trim_seqs
         self.pval        = pval
@@ -304,9 +304,7 @@ class SymTests(Features):
                         )
 
     def sym_iterator(self, aln_file):
-        # aln_file = "/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln\
-        # /internally_trimmed/malns_36_mseqs_27/\
-        # round2/no_lavaretus/McL/E0795.r2_para_no_lavaretus_TBL_tlike_aln"
+        # aln_file = "/Users/ulises/Desktop/GOL/data/alldatasets/nt_aln/internally_trimmed/malns_36_mseqs_27/round2/no_lavaretus/protein/round1/E0109.aaseqs.fasta"
         
         aln_base = os.path.basename(aln_file)
         sys.stdout.write("Processing: %s\n" % aln_base)
@@ -321,7 +319,7 @@ class SymTests(Features):
         if not self.codon_aware:
             (SymPval,
              MarPval,
-             IntPval) = self._symmetries(all_pairs, aln)
+             IntPval) = self._symmetries(all_pairs, aln, aa = self.isaminoacid)
 
             if self.symtype == 'sym':
                 passed = self._write_fasta(aln, aln_file, SymPval)
@@ -339,19 +337,25 @@ class SymTests(Features):
 
         else:
             seq_len = len( next(iter(aln.values())) )
+
+            if not (seq_len % 3):
+                sys.stderr.write("'%s' sequences length not divisible by three" % aln_base)
+                sys.stderr.flush()
+                return None
+
             codon1, codon2, codon3 = self._split_aln(aln, seq_len)
             
             (SymPval_pos1,
              MarPval_pos1,
-             IntPval_pos1) = self._symmetries(all_pairs, codon1)
+             IntPval_pos1) = self._symmetries(all_pairs, codon1, aa = self.isaminoacid)
 
             (SymPval_pos2,
              MarPval_pos2,
-             IntPval_pos2) = self._symmetries(all_pairs, codon2)
+             IntPval_pos2) = self._symmetries(all_pairs, codon2, aa = self.isaminoacid)
 
             (SymPval_pos3,
              MarPval_pos3,
-             IntPval_pos3) = self._symmetries(all_pairs, codon3)
+             IntPval_pos3) = self._symmetries(all_pairs, codon3, aa = self.isaminoacid)
 
             pval_table = {
                 'pos1': {

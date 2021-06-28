@@ -692,6 +692,9 @@ srh.add_argument('-w','--write_bad',
 srh.add_argument('-d','--trim_seqs',
                   action="store_true",
                   help='[Optional] If selected, trim not passing codon positions')
+srh.add_argument('-a','--is_aa',
+                  action="store_true",
+                  help='[Optional] If selected, sequences are aminoacids')
 srh.add_argument('-s','--suffix', 
                   metavar="",
                   default = "SymTest",
@@ -830,6 +833,7 @@ def main():
             pval        = wholeargs.pval,
             threads     = wholeargs.threads,
             write_bad   = wholeargs.write_bad,
+            isaminoacid = wholeargs.is_aa,
             trim_seqs   = wholeargs.trim_seqs,
         ).main()
 

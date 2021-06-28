@@ -53,7 +53,7 @@ ext_modules = [
 
 dependencies = [
                 "boldminer", # own package
-                "fishlifetraits>=0.4.0", # own package
+                "fishlifetraits>=0.4.1", # own package
                 'dendropy==4.4.0'
                 ]
 
@@ -61,7 +61,7 @@ with open('README.md') as readme_file:
     readme = readme_file.read()
 
 setup(name="fishlifeqc",
-      version='1.2.0',
+      version='1.2.1',
       author='Ulises Rosas',
     #   long_description = readme,
     #   long_description_content_type='text/markdown',
