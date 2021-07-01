@@ -10,7 +10,7 @@ Software requierements:
 
 ## Installation
 
-Using `pip`:
+Main version by using `pip`:
 ```Bash
 pip install fishlifeqc
 ```
