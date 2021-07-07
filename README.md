@@ -73,6 +73,9 @@ optional arguments:
   -h, --help            show this help message and exit
 ```
 
+A description of summary statistics currently available for `qcutil` can be found [here](https://github.com/Ulises-Rosas/fishlifeqc/blob/master/qcutil/var_names.md).
+
+
 Yet unintegrated scripts into `qcutil`:
 
 * `merge.py` : join two set of exons by using a map file
