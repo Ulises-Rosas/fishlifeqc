@@ -4,6 +4,9 @@ Features:
 
 - [x] quality control for exon alignments
 
+![here](https://github.com/Ulises-Rosas/fishlifeqc/blob/master/demo/pipe.png)
+
+
 Software requierements:
 
 * pip
