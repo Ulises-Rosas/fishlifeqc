@@ -216,8 +216,8 @@ boldsearch = subparsers.add_parser('bold',
                                     description="""
 
 
-                Wrapper of both BOLD and NCBI APIs for species identifications
-                                    from DNA sequences
+                Wrapper of both BOLD for species identification
+                                    from COI sequences
 - Host:
     BOLD: http://www.boldsystems.org/index.php/Ids_xml
 
@@ -273,7 +273,7 @@ bold_required.add_argument('-t','--taxonomy',
                         metavar="file",
                         default = None,
                         required= True,
-                        help='Taxonomy file. Format in csv: [sequence name],[group],[species name]')
+                        help='Taxonomy file. Format in csv: [sequence name],[species name]')
 
 bold_positional = boldsearch.add_argument_group('positional arguments')
 bold_positional.add_argument('sequence', 
