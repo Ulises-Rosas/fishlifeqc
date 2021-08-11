@@ -19,9 +19,9 @@ Using `pip`:
 pip install git+https://github.com/ulises-rosas/fishlifeqc.git
 ```
 
-Development version by using `git` and `pip` (Optional):
+Using `git` and `pip` (Optional):
 ```Bash
-git clone https://github.com/Ulises-Rosas/fishlifeqc.git 
+git clone https://github.com/ulises-rosas/fishlifeqc.git 
 cd fishlifeqc
 python3 -m pip install .
 ```
