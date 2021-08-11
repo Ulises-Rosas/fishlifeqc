@@ -10,11 +10,16 @@ Features:
 Software requierements:
 
 * pip
-* git
 
 ## Installation
 
-Development version by using `git` and `pip`:
+Using `pip`:
+
+```Bash
+pip install git+https://github.com/ulises-rosas/fishlifeqc.git
+```
+
+Development version by using `git` and `pip` (Optional):
 ```Bash
 git clone https://github.com/Ulises-Rosas/fishlifeqc.git 
 cd fishlifeqc
