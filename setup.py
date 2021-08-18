@@ -61,14 +61,16 @@ with open('README.md') as readme_file:
     readme = readme_file.read()
 
 setup(name="fishlifeqc",
-      version='1.2.3',
+      version='1.2.6',
       author='Ulises Rosas',
     #   long_description = readme,
     #   long_description_content_type='text/markdown',
       url='https://github.com/Ulises-Rosas/fishlifeqc',
       packages=['fishlifeqc', 'qcutil'],
+      package_data = {'fishlifeqc': bins},
       ext_modules=ext_modules,
       data_files = [ ('bin', bins) ],
+      include_package_data=True,
       install_requires = dependencies,
       zip_safe = False,
       entry_points={
