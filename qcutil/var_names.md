@@ -19,6 +19,7 @@
 |pi_std         |standard deviation of pairwise identity                    |                                                          |
 |total_tree_len |sum of all branch lengths in tree                          |                                                          |
 |treeness       |sum of internal branch lengths devided by 'total_tree_len' |Phillips & Penny 2003, DOI: 10.1016/s1055-7903(03)00057-5 |
+|coeffVar_len   |Coefficient of variation of branch lengths after mid-point rooting| Vankan et al. 2021, DOI: 10.1093/sysbio/syab051   |
 |inter_len_mean |mean of internal branch lengths in tree                    |                                                          |
 |inter_len_var  |variance of internal branch lengths in tree                |                                                          |
 |ter_len_mean   |mean of terminal branch lengths in tree                    |                                                          |
