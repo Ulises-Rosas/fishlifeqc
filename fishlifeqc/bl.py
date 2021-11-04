@@ -182,7 +182,7 @@ class BLCorrelations:
             cons_bl = dist_cons[mk]
 
             if not ref_bl:
-                ref_bl = 10e-6
+                ref_bl = 1e-6
 
             out[mk] = round(cons_bl/ref_bl, 2)
         return out
